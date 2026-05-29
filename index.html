@@ -195,8 +195,6 @@ body {
 /* expand-to-fullscreen: hide bottom bar */
 body.text-expanded .reading-area { padding-bottom: 32px; }
 body.text-expanded .bottom-player { display: none !important; }
-body.text-expanded .expand-btn svg.icon-expand { display: none; }
-body.text-expanded .expand-btn svg.icon-collapse { display: block !important; }
 
 .reading-text {
   font-family: 'Lora', serif;
@@ -218,19 +216,19 @@ body.text-expanded .expand-btn svg.icon-collapse { display: block !important; }
   border-radius: 3px;
 }
 
-/* Expand button — floating in reading area */
+/* Expand button — sits inside bottom player controls-right */
 .expand-btn {
-  position: fixed; bottom: 130px; right: 20px;
-  width: 36px; height: 36px; border-radius: 50%;
-  background: var(--surface); border: 1px solid var(--border-strong);
-  box-shadow: var(--shadow); color: var(--ink-dim);
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--surface2); border: 1px solid var(--border-strong);
+  color: var(--ink-muted);
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; z-index: 20; transition: all 0.2s;
+  cursor: pointer; transition: all 0.2s; flex-shrink: 0;
 }
-body.text-expanded .expand-btn { bottom: 24px; }
 .expand-btn:hover { color: var(--accent); border-color: var(--accent); }
-.expand-btn svg { width: 14px; height: 14px; }
+.expand-btn svg { width: 13px; height: 13px; }
 .expand-btn svg.icon-collapse { display: none; }
+body.text-expanded .expand-btn svg.icon-expand { display: none; }
+body.text-expanded .expand-btn svg.icon-collapse { display: block !important; }
 
 /* ── BOTTOM PLAYER ── */
 .bottom-player {
@@ -436,7 +434,6 @@ input[type=range]::-webkit-slider-thumb {
   .controls-row { max-width: 600px; margin: 0 auto; }
   .reading-area { padding: 40px 48px 160px; }
   .reading-text { max-width: 680px; }
-  .expand-btn { bottom: 140px; right: calc(50% - 360px); }
 }
 
 /* ── MOBILE ── */
@@ -552,18 +549,6 @@ input[type=range]::-webkit-slider-thumb {
     </div>
   </div>
 
-  <!-- EXPAND BUTTON -->
-  <button class="expand-btn" onclick="toggleExpand()" title="Perluas teks">
-    <svg class="icon-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
-      <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
-    </svg>
-    <svg class="icon-collapse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/>
-      <line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/>
-    </svg>
-  </button>
-
   <!-- BOTTOM PLAYER -->
   <div class="bottom-player">
     <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
@@ -597,9 +582,19 @@ input[type=range]::-webkit-slider-thumb {
         </button>
       </div>
 
-      <!-- Right: progress label -->
+      <!-- Right: progress + expand -->
       <div class="controls-right">
         <span class="progress-label" id="progress-label">—</span>
+        <button class="expand-btn" onclick="toggleExpand()" title="Perluas teks">
+          <svg class="icon-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
+            <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+          </svg>
+          <svg class="icon-collapse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/>
+            <line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/>
+          </svg>
+        </button>
       </div>
     </div>
     <div class="status-line" id="status-line">Siap</div>

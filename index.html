@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audio Books — Google TTS</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d0c0b; --surface: #181714; --surface2: #211f1c; --surface3: #2a2825;
+    --border: #2e2b26; --accent: #d4a853; --accent2: #e8c278;
+    --accent-dim: rgba(212,168,83,0.12); --text: #ede9e0;
+    --text-dim: #8a8478; --text-muted: #4a4840;
+    --red: #e05c5c; --green: #5ce08a; --blue: #78b4e8;
+    --radius: 14px; --radius-sm: 8px;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 36px 16px 80px; background-image: radial-gradient(ellipse at 15% 0%, rgba(212,168,83,0.06) 0%, transparent 55%), radial-gradient(ellipse at 85% 90%, rgba(212,168,83,0.04) 0%, transparent 50%); }
+  .app-header { text-align: center; margin-bottom: 36px; }
+  .app-title { font-family: 'Playfair Display', serif; font-size: 2.2rem; letter-spacing: -0.02em; }
+  .app-title em { color: var(--accent); font-style: italic; }
+  .app-sub { font-size: 0.72rem; color: var(--text-muted); letter-spacing: 0.18em; text-transform: uppercase; margin-top: 6px; }
+  .app-tagline { font-family: 'Playfair Display', serif; font-style: italic; font-size: 1rem; color: var(--text-dim); margin-top: 10px; font-weight: 400; letter-spacing: 0.01em; }
+  .app-footer { width: 100%; text-align: center; padding-top: 48px; font-size: 0.68rem; color: var(--text-muted); letter-spacing: 0.1em; }
+  .badge { display: inline-block; background: rgba(92,224,138,0.12); border: 1px solid rgba(92,224,138,0.3); color: var(--green); font-size: 0.65rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; margin-top: 8px; }
+
+  #api-panel { width: 100%; max-width: 520px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; margin-bottom: 20px; }
+  .api-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-muted); margin-bottom: 14px; }
+  .api-row { display: flex; gap: 10px; }
+  .api-input-wrap { flex: 1; position: relative; }
+  .api-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.85rem; padding: 10px 40px 10px 14px; border-radius: var(--radius-sm); outline: none; transition: border-color 0.2s; }
+  .api-input:focus { border-color: var(--accent); }
+  .api-toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.85rem; }
+  .btn-connect { background: var(--accent); border: none; color: #0d0c0b; font-family: 'DM Sans', sans-serif; font-weight: 500; font-size: 0.85rem; padding: 10px 20px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+  .btn-connect:hover { background: var(--accent2); }
+  .btn-connect:disabled { opacity: 0.5; cursor: not-allowed; }
+  .api-hint { margin-top: 10px; font-size: 0.75rem; color: var(--text-muted); line-height: 1.5; }
+  .api-hint a { color: var(--accent); text-decoration: none; }
+  .api-status { margin-top: 10px; font-size: 0.78rem; min-height: 18px; }
+  .api-status.ok { color: var(--green); }
+  .api-status.err { color: var(--red); }
+  .api-status.loading { color: var(--text-muted); }
+  .btn-clear-key { margin-top: 10px; background: none; border: none; color: var(--text-muted); font-family: 'DM Sans', sans-serif; font-size: 0.72rem; cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 3px; }
+  .btn-clear-key:hover { color: var(--red); }
+
+  #upload-zone { width: 100%; max-width: 520px; border: 1.5px dashed var(--border); border-radius: var(--radius); padding: 44px 32px; text-align: center; cursor: pointer; transition: all 0.25s; background: var(--surface); display: none; }
+  #upload-zone.visible { display: block; }
+  #upload-zone:hover, #upload-zone.drag-over { border-color: var(--accent); background: var(--accent-dim); }
+  #upload-zone input { display: none; }
+  .upload-icon { font-size: 2.8rem; margin-bottom: 14px; }
+  .upload-label { font-size: 0.95rem; color: var(--text-dim); line-height: 1.6; }
+  .upload-label strong { color: var(--accent); cursor: pointer; }
+  .upload-hint { margin-top: 8px; font-size: 0.72rem; color: var(--text-muted); }
+
+  #player-view { display: none; width: 100%; max-width: 680px; flex-direction: column; gap: 16px; }
+
+  .book-info { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 26px; display: flex; align-items: center; gap: 18px; }
+  .book-cover { width: 52px; height: 68px; background: linear-gradient(145deg, var(--accent) 0%, #7a5c10 100%); border-radius: 6px 10px 10px 6px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0; box-shadow: 3px 3px 16px rgba(0,0,0,0.5), inset -2px 0 4px rgba(0,0,0,0.3); }
+  .book-meta { flex: 1; min-width: 0; }
+  .book-title-display { font-family: 'Playfair Display', serif; font-size: 1.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .book-stats { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+  .btn-sm { background: none; border: 1px solid var(--border); color: var(--text-muted); font-family: 'DM Sans', sans-serif; font-size: 0.72rem; padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+  .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+
+  .voice-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; }
+  .voice-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .voice-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted); white-space: nowrap; min-width: 52px; }
+  .chip-group { display: flex; gap: 7px; flex-wrap: wrap; }
+  .chip { background: var(--surface2); border: 1px solid var(--border); color: var(--text-dim); font-family: 'DM Sans', sans-serif; font-size: 0.78rem; padding: 6px 14px; border-radius: 20px; cursor: pointer; transition: all 0.2s; }
+  .chip:hover { border-color: var(--accent); color: var(--text); }
+  .chip.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .chip-sub { font-size: 0.64rem; opacity: 0.5; }
+
+  /* CHAPTER LIST — dengan tombol download */
+  .chapter-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .section-header { padding: 12px 20px; font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .chapter-list { max-height: 260px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  .chapter-item { padding: 10px 16px; cursor: pointer; transition: background 0.15s; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.025); font-size: 0.85rem; color: var(--text-dim); }
+  .chapter-item:hover { background: var(--surface2); }
+  .chapter-item.active { background: var(--accent-dim); color: var(--text); }
+  .chapter-item.active .ch-num { color: var(--accent); }
+  .ch-num { font-size: 0.7rem; color: var(--text-muted); min-width: 22px; font-family: monospace; flex-shrink: 0; }
+  .ch-title { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ch-badge { font-size: 0.65rem; padding: 2px 7px; border-radius: 10px; background: var(--surface3); color: var(--text-muted); flex-shrink: 0; }
+  .ch-badge.downloaded { background: rgba(92,224,138,0.12); color: var(--green); }
+
+  /* DOWNLOAD BUTTON per bab */
+  .btn-dl {
+    background: none; border: 1px solid var(--border); color: var(--text-muted);
+    font-size: 0.68rem; padding: 3px 9px; border-radius: 6px; cursor: pointer;
+    transition: all 0.2s; white-space: nowrap; flex-shrink: 0; font-family: 'DM Sans', sans-serif;
+  }
+  .btn-dl:hover { border-color: var(--green); color: var(--green); }
+  .btn-dl.loading { border-color: var(--accent); color: var(--accent); cursor: wait; }
+  .btn-dl.done { border-color: var(--green); color: var(--green); background: rgba(92,224,138,0.08); }
+
+  /* DOWNLOAD PROGRESS MODAL */
+  .dl-modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200;
+    display: none; align-items: center; justify-content: center;
+  }
+  .dl-modal.show { display: flex; }
+  .dl-box {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 32px; width: 90%; max-width: 420px; text-align: center;
+  }
+  .dl-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; margin-bottom: 8px; }
+  .dl-sub { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 20px; }
+  .dl-progress-bg { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 12px; }
+  .dl-progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; transition: width 0.3s; width: 0%; }
+  .dl-info { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 20px; min-height: 20px; }
+  .btn-dl-cancel { background: none; border: 1px solid var(--border); color: var(--text-muted); font-family: 'DM Sans', sans-serif; font-size: 0.78rem; padding: 8px 20px; border-radius: 6px; cursor: pointer; }
+  .btn-dl-cancel:hover { border-color: var(--red); color: var(--red); }
+
+  .text-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px 28px; max-height: 240px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; line-height: 1.95; font-size: 0.92rem; color: var(--text-dim); }
+  .sentence-wrap { display: inline; }
+  .sentence-wrap.past { opacity: 0.35; }
+  .sentence-wrap.active { background: var(--accent-dim); color: var(--accent2); border-radius: 3px; padding: 1px 3px; box-shadow: 0 0 0 1px rgba(212,168,83,0.2); }
+  .text-empty { text-align: center; color: var(--text-muted); padding: 20px 0; font-style: italic; font-size: 0.88rem; }
+
+  .controls { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 26px; }
+  .progress-row { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-muted); margin-bottom: 8px; }
+  .progress-bg { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 22px; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; transition: width 0.4s ease; width: 0%; }
+  .btn-row { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 22px; }
+  .btn-ctrl { background: none; border: none; cursor: pointer; color: var(--text-dim); transition: all 0.2s; display: flex; align-items: center; justify-content: center; border-radius: 50%; padding: 8px; width: 40px; height: 40px; }
+  .btn-ctrl:hover { color: var(--text); background: var(--surface2); }
+  .btn-ctrl svg { width: 20px; height: 20px; }
+  .btn-play-main { width: 62px; height: 62px; border-radius: 50%; background: var(--accent); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .btn-play-main:hover { transform: scale(1.06); box-shadow: 0 0 0 10px rgba(212,168,83,0.08); }
+  .btn-play-main:active { transform: scale(0.96); }
+  .btn-play-main.loading-state { background: var(--surface3); cursor: wait; }
+  .btn-play-main svg { width: 24px; height: 24px; fill: #0d0c0b; }
+  .btn-play-main.loading-state svg { display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { width: 22px; height: 22px; border: 2.5px solid rgba(255,255,255,0.08); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
+  .btn-play-main.loading-state .spinner { display: block; }
+  .settings-row { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+  .setting-group { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 140px; }
+  .setting-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; white-space: nowrap; }
+  input[type=range] { flex: 1; height: 3px; -webkit-appearance: none; background: var(--border); border-radius: 2px; outline: none; cursor: pointer; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+  .setting-val { font-size: 0.75rem; color: var(--text-dim); min-width: 40px; text-align: right; }
+
+  .status-bar { text-align: center; font-size: 0.78rem; color: var(--text-muted); padding: 8px; min-height: 26px; }
+  .status-bar.speaking { color: var(--accent); }
+  .status-bar.fetching { color: var(--blue); }
+  .status-bar.err { color: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.2} }
+  .dot { display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:6px; animation: pulse 1.1s ease-in-out infinite; vertical-align: middle; }
+  .dot.speaking { background: var(--accent); }
+  .dot.fetching { background: var(--blue); }
+  .cache-info { font-size: 0.72rem; color: var(--text-muted); text-align: right; padding: 2px 0; }
+  .cache-info span { color: var(--green); }
+  .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 11px 22px; border-radius: 8px; font-size: 0.83rem; transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1); z-index: 100; pointer-events: none; white-space: nowrap; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ── MOBILE RESPONSIVE ── */
+  @media (max-width: 480px) {
+    body { padding: 24px 12px 100px; }
+    .app-title { font-size: 1.8rem; }
+    .app-tagline { font-size: 0.88rem; }
+    .app-header { margin-bottom: 24px; }
+    #api-panel { padding: 20px 16px; }
+    .api-row { flex-direction: column; gap: 10px; }
+    .btn-connect { width: 100%; padding: 12px; font-size: 0.9rem; }
+    .api-input { font-size: 0.9rem; padding: 12px 40px 12px 14px; }
+    #upload-zone { padding: 32px 20px; }
+    .book-info { padding: 16px; gap: 12px; }
+    .book-cover { width: 44px; height: 58px; font-size: 1.2rem; }
+    .book-title-display { font-size: 1rem; }
+    .voice-panel { padding: 14px 16px; }
+    .voice-row { gap: 8px; }
+    .chip { font-size: 0.75rem; padding: 7px 12px; }
+    .chip-sub { display: none; }
+    .chapter-list { max-height: 220px; }
+    .chapter-item { padding: 12px; gap: 8px; font-size: 0.82rem; }
+    .ch-badge { display: none; }
+    .btn-dl { font-size: 0.7rem; padding: 5px 8px; min-width: 52px; text-align: center; }
+    .text-panel { padding: 16px 18px; font-size: 0.88rem; max-height: 180px; }
+    .controls { padding: 18px 16px; position: sticky; bottom: 12px; z-index: 10; box-shadow: 0 -4px 32px rgba(0,0,0,0.5); }
+    .btn-row { gap: 8px; margin-bottom: 20px; }
+    .btn-ctrl { width: 44px; height: 44px; }
+    .btn-ctrl svg { width: 18px; height: 18px; }
+    .btn-play-main { width: 68px; height: 68px; }
+    .btn-play-main svg { width: 26px; height: 26px; }
+    .settings-row { flex-direction: column; gap: 14px; }
+    .setting-group { min-width: unset; width: 100%; }
+    input[type=range]::-webkit-slider-thumb { width: 18px; height: 18px; }
+    .toast { font-size: 0.8rem; padding: 10px 18px; bottom: 20px; max-width: 90vw; white-space: normal; text-align: center; }
+    .dl-box { padding: 24px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <h1 class="app-title">Audio <em>Books</em></h1>
+  <p class="app-sub">Google WaveNet · EPUB · Bahasa Indonesia</p>
+  <p class="app-tagline">Bawa cerita favoritmu ke mana pun dan dengarkan</p>
+  <div class="badge">✦ WaveNet Neural · Download MP3 Offline</div>
+</header>
+
+<!-- API KEY -->
+<div id="api-panel">
+  <p class="api-title">🔑 Google Cloud API Key</p>
+  <div class="api-row">
+    <div class="api-input-wrap">
+      <input type="password" class="api-input" id="api-key-input" placeholder="AIzaSy..." autocomplete="off">
+      <button class="api-toggle" onclick="toggleApiVis()">👁</button>
+    </div>
+    <button class="btn-connect" id="btn-connect" onclick="connectApi()">Sambungkan</button>
+  </div>
+  <p class="api-hint">Buat API key di <a href="https://console.cloud.google.com/apis/credentials" target="_blank">console.cloud.google.com</a>. Key disimpan di browser lo, tidak dikirim ke server manapun.</p>
+  <p class="api-status" id="api-status"></p>
+  <button class="btn-clear-key" id="btn-clear-key" onclick="clearSavedKey()" style="display:none">🗑 Hapus key tersimpan</button>
+</div>
+
+<!-- UPLOAD -->
+<div id="upload-zone">
+  <input type="file" id="file-input" accept=".epub">
+  <div class="upload-icon">📖</div>
+  <p class="upload-label"><strong onclick="document.getElementById('file-input').click()">Pilih file EPUB</strong> atau seret ke sini</p>
+  <p class="upload-hint">Format .epub · Diproses lokal di browser lo</p>
+</div>
+
+<!-- PLAYER -->
+<div id="player-view">
+  <div class="book-info">
+    <div class="book-cover">📚</div>
+    <div class="book-meta">
+      <div class="book-title-display" id="book-title-display">—</div>
+      <div class="book-stats" id="book-stats">—</div>
+    </div>
+    <button class="btn-sm" onclick="resetBook()">Ganti Buku</button>
+  </div>
+
+  <div class="voice-panel">
+    <div class="voice-row">
+      <span class="voice-label">Suara</span>
+      <div class="chip-group">
+        <button class="chip active" data-voice="id-ID-Wavenet-A" data-gender="FEMALE" onclick="selectVoice(this)">Wavenet-A <span class="chip-sub">· ♀</span></button>
+        <button class="chip" data-voice="id-ID-Wavenet-B" data-gender="MALE" onclick="selectVoice(this)">Wavenet-B <span class="chip-sub">· ♂</span></button>
+        <button class="chip" data-voice="id-ID-Wavenet-C" data-gender="MALE" onclick="selectVoice(this)">Wavenet-C <span class="chip-sub">· ♂ warm</span></button>
+        <button class="chip" data-voice="id-ID-Wavenet-D" data-gender="FEMALE" onclick="selectVoice(this)">Wavenet-D <span class="chip-sub">· ♀ expressive</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHAPTER LIST dengan tombol download -->
+  <div class="chapter-wrap">
+    <div class="section-header">
+      <span>Daftar Bab</span>
+      <span id="ch-count-label" style="font-size:0.7rem">—</span>
+    </div>
+    <div class="chapter-list" id="chapter-list"></div>
+  </div>
+
+  <div class="text-panel" id="text-panel">
+    <div class="text-empty">Pilih bab untuk mulai mendengarkan</div>
+  </div>
+
+  <div class="controls">
+    <div class="progress-row">
+      <span id="progress-text">—</span>
+      <span id="chapter-label">—</span>
+    </div>
+    <div class="progress-bg"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="btn-row">
+      <button class="btn-ctrl" onclick="prevChapter()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="4" x2="5" y2="20"/></svg>
+      </button>
+      <button class="btn-ctrl" onclick="rewindSentence()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+      </button>
+      <button class="btn-play-main" id="btn-play" onclick="togglePlay()">
+        <svg id="icon-play" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        <svg id="icon-pause" viewBox="0 0 24 24" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+        <div class="spinner"></div>
+      </button>
+      <button class="btn-ctrl" onclick="forwardSentence()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+      </button>
+      <button class="btn-ctrl" onclick="nextChapter()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="4" x2="19" y2="20"/></svg>
+      </button>
+    </div>
+    <div class="settings-row">
+      <div class="setting-group">
+        <span class="setting-label">Kecepatan</span>
+        <input type="range" id="speed-slider" min="0.75" max="1.5" step="0.05" value="1.0" oninput="updateSpeed(this.value)">
+        <span class="setting-val" id="speed-val">1.0×</span>
+      </div>
+      <div class="setting-group">
+        <span class="setting-label">Nada</span>
+        <input type="range" id="pitch-slider" min="-5" max="5" step="0.5" value="0" oninput="updatePitch(this.value)">
+        <span class="setting-val" id="pitch-val">0</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="cache-info" id="cache-info"></div>
+  <div class="status-bar" id="status-bar">Siap</div>
+</div>
+
+<!-- DOWNLOAD MODAL -->
+<div class="dl-modal" id="dl-modal">
+  <div class="dl-box">
+    <div class="dl-title">⬇️ Mengunduh Bab</div>
+    <div class="dl-sub" id="dl-chapter-name">—</div>
+    <div class="dl-progress-bg"><div class="dl-progress-fill" id="dl-progress-fill"></div></div>
+    <div class="dl-info" id="dl-info">Mempersiapkan...</div>
+    <button class="btn-dl-cancel" onclick="cancelDownload()">Batalkan</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+// ── STATE ──
+let apiKey = '';
+let selectedVoice = 'id-ID-Wavenet-A';
+let selectedGender = 'FEMALE';
+let speechRate = 1.0;
+let pitchVal = 0;
+let chapters = [];
+let currentChapter = -1;
+let currentSentence = 0;
+let isPlaying = false;
+let currentAudio = null;
+const audioCache = {};
+const downloadedChapters = new Set();
+let dlCancelled = false;
+let bookTitle = '';
+
+// ── API ──
+const LS_KEY = 'buku_suara_gcloud_key';
+
+function toggleApiVis() {
+  const inp = document.getElementById('api-key-input');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+function autoFillKey() {
+  const saved = localStorage.getItem(LS_KEY);
+  if (saved) {
+    document.getElementById('api-key-input').value = saved;
+    document.getElementById('btn-clear-key').style.display = 'inline';
+    setApiStatus('Key tersimpan ditemukan — klik Sambungkan', 'loading');
+  }
+}
+
+async function connectApi() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (!key) { setApiStatus('Masukkan API key dulu', 'err'); return; }
+  setApiStatus('Menghubungkan...', 'loading');
+  document.getElementById('btn-connect').disabled = true;
+  try {
+    const res = await fetch(`https://texttospeech.googleapis.com/v1/voices?key=${key}`);
+    if (!res.ok) {
+      const err = await res.json().catch(()=>({error:{message:'Key tidak valid'}}));
+      throw new Error(err.error?.message || 'Key tidak valid');
+    }
+    apiKey = key;
+    localStorage.setItem(LS_KEY, key);
+    document.getElementById('btn-clear-key').style.display = 'inline';
+    setApiStatus('✓ Terhubung · Google WaveNet siap', 'ok');
+    document.getElementById('upload-zone').classList.add('visible');
+    showToast('Google TTS terhubung!');
+  } catch(e) {
+    setApiStatus('❌ ' + e.message, 'err');
+    document.getElementById('btn-connect').disabled = false;
+  }
+}
+
+function clearSavedKey() {
+  localStorage.removeItem(LS_KEY);
+  document.getElementById('api-key-input').value = '';
+  document.getElementById('btn-clear-key').style.display = 'none';
+  document.getElementById('btn-connect').disabled = false;
+  apiKey = '';
+  setApiStatus('Key dihapus', 'loading');
+  document.getElementById('upload-zone').classList.remove('visible');
+  document.getElementById('player-view').style.display = 'none';
+  showToast('Key berhasil dihapus');
+}
+
+function setApiStatus(msg, cls) {
+  const el = document.getElementById('api-status');
+  el.textContent = msg; el.className = 'api-status ' + cls;
+}
+
+// Auto-fill on load
+window.addEventListener('DOMContentLoaded', autoFillKey);
+
+// ── VOICE ──
+function selectVoice(el) {
+  selectedVoice = el.dataset.voice;
+  selectedGender = el.dataset.gender;
+  document.querySelectorAll('.chip[data-voice]').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  clearCache();
+  if (isPlaying) { stopAudio(); startPlaying(); }
+}
+function clearCache() {
+  Object.keys(audioCache).forEach(k => { URL.revokeObjectURL(audioCache[k]); delete audioCache[k]; });
+  updateCacheInfo();
+}
+
+// ── EPUB ──
+const uploadZone = document.getElementById('upload-zone');
+const fileInput  = document.getElementById('file-input');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f?.name.endsWith('.epub')) loadEpub(f); else showToast('File harus .epub');
+});
+fileInput.addEventListener('change', e => { if (e.target.files[0]) loadEpub(e.target.files[0]); });
+
+async function loadEpub(file) {
+  setStatus('Memuat EPUB...', '');
+  try {
+    const ab  = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(ab);
+    const containerXml = await zip.file('META-INF/container.xml').async('text');
+    const containerDoc = new DOMParser().parseFromString(containerXml, 'application/xml');
+    const rootfilePath = containerDoc.querySelector('rootfile').getAttribute('full-path');
+    const rootDir = rootfilePath.includes('/') ? rootfilePath.split('/').slice(0,-1).join('/') + '/' : '';
+    const opfText = await zip.file(rootfilePath).async('text');
+    const opfDoc  = new DOMParser().parseFromString(opfText, 'application/xml');
+    bookTitle = opfDoc.querySelector('title')?.textContent?.trim() || file.name.replace('.epub','');
+    const spineItems = [...opfDoc.querySelectorAll('spine itemref')].map(el => el.getAttribute('idref'));
+    const manifestMap = {};
+    [...opfDoc.querySelectorAll('manifest item')].forEach(el => {
+      manifestMap[el.getAttribute('id')] = { href: el.getAttribute('href'), type: el.getAttribute('media-type') };
+    });
+    chapters = [];
+    for (const idref of spineItems) {
+      const item = manifestMap[idref];
+      if (!item || !item.type?.includes('html')) continue;
+      const href  = rootDir + item.href;
+      const zFile = zip.file(href) || zip.file(item.href);
+      if (!zFile) continue;
+      const html = await zFile.async('text');
+      const doc  = new DOMParser().parseFromString(html, 'text/html');
+      ['nav','script','style'].forEach(t => doc.querySelectorAll(t).forEach(el=>el.remove()));
+      let chTitle = doc.querySelector('h1,h2,h3')?.textContent?.trim() || `Bab ${chapters.length+1}`;
+      chTitle = chTitle.substring(0,80);
+      const rawText = (doc.body?.innerText || doc.body?.textContent || '').replace(/\s+/g,' ').trim();
+      if (rawText.length < 60) continue;
+      const sentences = splitSentences(rawText);
+      if (!sentences.length) continue;
+      chapters.push({ title: chTitle, sentences });
+    }
+    if (!chapters.length) { setStatus('Tidak ada bab yang bisa dibaca.', 'err'); return; }
+    document.getElementById('book-title-display').textContent = bookTitle;
+    document.getElementById('book-stats').textContent = `${chapters.length} bab · ${chapters.reduce((a,c)=>a+c.sentences.length,0)} segmen`;
+    document.getElementById('ch-count-label').textContent = `${chapters.length} bab`;
+    renderChapterList();
+    uploadZone.classList.remove('visible');
+    document.getElementById('player-view').style.display = 'flex';
+    loadChapter(0);
+    setStatus('Siap diputar');
+    showToast(`"${bookTitle}" berhasil dimuat!`);
+  } catch(e) {
+    console.error(e);
+    setStatus('Gagal memuat: ' + e.message, 'err');
+  }
+}
+
+function splitSentences(text) {
+  const raw = text.match(/[^.!?؟\n]+[.!?؟\n]+/g) || [text];
+  const result = []; let buf = '';
+  for (const s of raw) {
+    if ((buf+s).length > 400 && buf.length > 0) { result.push(buf.trim()); buf = s; }
+    else buf += s;
+  }
+  if (buf.trim()) result.push(buf.trim());
+  return result.filter(s => s.length > 3);
+}
+
+// ── CHAPTER LIST ──
+function renderChapterList() {
+  const list = document.getElementById('chapter-list');
+  list.innerHTML = '';
+  chapters.forEach((ch, i) => {
+    const el = document.createElement('div');
+    el.className = 'chapter-item'; el.id = `ch-item-${i}`;
+    const isDone = downloadedChapters.has(i);
+    el.innerHTML = `
+      <span class="ch-num">${String(i+1).padStart(2,'0')}</span>
+      <span class="ch-title" onclick="chapterClick(${i})">${escHtml(ch.title)}</span>
+      <span class="ch-badge ${isDone?'downloaded':''}" id="ch-badge-${i}">${isDone?'✓ saved':ch.sentences.length+' seg.'}</span>
+      <button class="btn-dl ${isDone?'done':''}" id="btn-dl-${i}" onclick="downloadChapter(${i},event)" title="Download bab ini sebagai MP3">
+        ${isDone ? '✓' : '⬇ MP3'}
+      </button>
+    `;
+    list.appendChild(el);
+  });
+}
+
+function chapterClick(i) {
+  stopAudio(); loadChapter(i); startPlaying();
+}
+
+function setActiveChapter(idx) {
+  document.querySelectorAll('.chapter-item').forEach((el,i) => el.classList.toggle('active', i===idx));
+  document.getElementById(`ch-item-${idx}`)?.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+function loadChapter(idx) {
+  if (idx < 0 || idx >= chapters.length) return;
+  currentChapter = idx; currentSentence = 0;
+  setActiveChapter(idx);
+  document.getElementById('chapter-label').textContent = `Bab ${idx+1}/${chapters.length}`;
+  renderTextPanel(); updateProgress();
+}
+
+// ── DOWNLOAD CHAPTER ──
+async function downloadChapter(chIdx, e) {
+  e.stopPropagation();
+  if (!apiKey) { showToast('Sambungkan API key dulu'); return; }
+  const ch = chapters[chIdx];
+  if (!ch) return;
+
+  dlCancelled = false;
+  const modal = document.getElementById('dl-modal');
+  const dlName = document.getElementById('dl-chapter-name');
+  const dlFill = document.getElementById('dl-progress-fill');
+  const dlInfo = document.getElementById('dl-info');
+  const btn = document.getElementById(`btn-dl-${chIdx}`);
+
+  btn.className = 'btn-dl loading';
+  btn.textContent = '...';
+  modal.classList.add('show');
+  dlName.textContent = `Bab ${chIdx+1}: ${ch.title}`;
+  dlFill.style.width = '0%';
+  dlInfo.textContent = 'Memulai...';
+
+  // Fetch semua segmen satu per satu, kumpulkan jadi satu MP3
+  const mp3Chunks = [];
+  const total = ch.sentences.length;
+
+  for (let i = 0; i < total; i++) {
+    if (dlCancelled) break;
+    dlFill.style.width = Math.round((i/total)*100) + '%';
+    dlInfo.textContent = `Segmen ${i+1} / ${total}`;
+
+    try {
+      const audioData = await fetchAudioRaw(ch.sentences[i]);
+      mp3Chunks.push(audioData);
+    } catch(err) {
+      modal.classList.remove('show');
+      btn.className = 'btn-dl';
+      btn.textContent = '⬇ MP3';
+      showToast('Gagal: ' + err.message);
+      return;
+    }
+  }
+
+  modal.classList.remove('show');
+
+  if (dlCancelled) {
+    btn.className = 'btn-dl';
+    btn.textContent = '⬇ MP3';
+    showToast('Download dibatalkan');
+    return;
+  }
+
+  // Gabungkan semua chunk MP3 jadi satu file
+  const totalLen = mp3Chunks.reduce((a,b) => a + b.byteLength, 0);
+  const merged   = new Uint8Array(totalLen);
+  let offset = 0;
+  for (const chunk of mp3Chunks) {
+    merged.set(new Uint8Array(chunk), offset);
+    offset += chunk.byteLength;
+  }
+
+  // Trigger download
+  const blob = new Blob([merged], { type: 'audio/mpeg' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const safeName = `${bookTitle} - Bab ${String(chIdx+1).padStart(2,'0')} - ${ch.title}`.replace(/[/\\?%*:|"<>]/g,'-');
+  a.href = url; a.download = `${safeName}.mp3`;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+  downloadedChapters.add(chIdx);
+  btn.className = 'btn-dl done';
+  btn.textContent = '✓';
+  document.getElementById(`ch-badge-${chIdx}`).className = 'ch-badge downloaded';
+  document.getElementById(`ch-badge-${chIdx}`).textContent = '✓ saved';
+  showToast(`Bab ${chIdx+1} berhasil didownload!`);
+}
+
+function cancelDownload() {
+  dlCancelled = true;
+}
+
+// Fetch raw MP3 bytes dari Google TTS (tanpa cache URL)
+async function fetchAudioRaw(text) {
+  const res = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      input: { text },
+      voice: { languageCode: 'id-ID', name: selectedVoice, ssmlGender: selectedGender },
+      audioConfig: { audioEncoding: 'MP3', speakingRate: speechRate, pitch: pitchVal, effectsProfileId: ['headphone-class-device'] }
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({error:{message:'TTS error'}}));
+    throw new Error(err.error?.message || 'TTS error');
+  }
+  const data = await res.json();
+  const binary = atob(data.audioContent);
+  const bytes  = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+// ── GOOGLE TTS (untuk playback) ──
+async function fetchAudio(chIdx, sIdx) {
+  const cacheKey = `${chIdx}-${sIdx}-${selectedVoice}-${speechRate}-${pitchVal}`;
+  if (audioCache[cacheKey]) return audioCache[cacheKey];
+  const text = chapters[chIdx]?.sentences[sIdx];
+  if (!text) return null;
+  const raw = await fetchAudioRaw(text);
+  const blob = new Blob([raw], { type: 'audio/mpeg' });
+  const url  = URL.createObjectURL(blob);
+  audioCache[cacheKey] = url;
+  updateCacheInfo();
+  return url;
+}
+
+// ── PLAYBACK ──
+async function startPlaying() {
+  if (currentChapter < 0) return;
+  isPlaying = true; setPlayState('play');
+  await playSentence(currentSentence);
+}
+
+async function playSentence(idx) {
+  if (!isPlaying) return;
+  const ch = chapters[currentChapter];
+  if (!ch || idx >= ch.sentences.length) {
+    if (currentChapter < chapters.length-1) { loadChapter(currentChapter+1); currentSentence=0; await playSentence(0); }
+    else { isPlaying=false; setPlayState('idle'); setStatus('Selesai dibaca 🎉'); renderTextPanel(-1); }
+    return;
+  }
+  currentSentence = idx;
+  updateProgress(); renderTextPanel(idx);
+  setStatus('', 'fetching'); setPlayState('loading');
+  let url;
+  try { url = await fetchAudio(currentChapter, idx); }
+  catch(e) { isPlaying=false; setPlayState('idle'); setStatus(e.message,'err'); showToast(e.message); return; }
+  if (!isPlaying) return;
+  setPlayState('play'); setStatus('', 'speaking');
+  prefetchNext(currentChapter, idx+1);
+  currentAudio = new Audio(url);
+  currentAudio.play();
+  currentAudio.onended = () => { if (isPlaying) playSentence(idx+1); };
+  currentAudio.onerror = () => { if (isPlaying) { setStatus('Error audio','err'); isPlaying=false; setPlayState('idle'); } };
+}
+
+function prefetchNext(chIdx, sIdx) {
+  if (!isPlaying) return;
+  const ch = chapters[chIdx];
+  if (!ch || sIdx >= ch.sentences.length) return;
+  const key = `${chIdx}-${sIdx}-${selectedVoice}-${speechRate}-${pitchVal}`;
+  if (!audioCache[key]) fetchAudio(chIdx, sIdx).catch(()=>{});
+}
+
+function togglePlay() {
+  if (currentChapter < 0) { showToast('Pilih bab dulu'); return; }
+  if (isPlaying) { isPlaying=false; currentAudio?.pause(); setPlayState('idle'); setStatus('Dijeda'); }
+  else {
+    if (currentAudio?.paused && currentAudio.src) { isPlaying=true; currentAudio.play(); setPlayState('play'); setStatus('','speaking'); }
+    else startPlaying();
+  }
+}
+function stopAudio() {
+  isPlaying=false;
+  if (currentAudio) { currentAudio.pause(); currentAudio.src=''; currentAudio=null; }
+  setPlayState('idle');
+}
+async function forwardSentence() { stopAudio(); currentSentence=Math.min(currentSentence+1,(chapters[currentChapter]?.sentences.length||1)-1); renderTextPanel(currentSentence); updateProgress(); await startPlaying(); }
+async function rewindSentence() { stopAudio(); currentSentence=Math.max(currentSentence-1,0); renderTextPanel(currentSentence); updateProgress(); await startPlaying(); }
+function prevChapter() { stopAudio(); if(currentChapter>0){loadChapter(currentChapter-1);startPlaying();} }
+function nextChapter() { stopAudio(); if(currentChapter<chapters.length-1){loadChapter(currentChapter+1);startPlaying();} }
+
+function renderTextPanel(activeIdx = -1) {
+  const panel = document.getElementById('text-panel');
+  if (currentChapter < 0 || !chapters[currentChapter]) { panel.innerHTML = '<div class="text-empty">Pilih bab untuk mulai mendengarkan</div>'; return; }
+  const sents = chapters[currentChapter].sentences;
+  panel.innerHTML = sents.map((s, i) => {
+    let cls = 'sentence-wrap';
+    if (i < activeIdx) cls += ' past';
+    if (i === activeIdx) cls += ' active';
+    return `<span class="${cls}" id="s-${i}">${escHtml(s)} </span>`;
+  }).join('');
+  if (activeIdx >= 0) document.getElementById(`s-${activeIdx}`)?.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+
+function updateSpeed(val) { speechRate=parseFloat(val); document.getElementById('speed-val').textContent=speechRate.toFixed(2).replace(/\.?0+$/,'')+'×'; }
+function updatePitch(val) { pitchVal=parseFloat(val); document.getElementById('pitch-val').textContent=(pitchVal>=0?'+':'')+pitchVal; }
+
+function setPlayState(state) {
+  const btn=document.getElementById('btn-play'), ip=document.getElementById('icon-play'), ipu=document.getElementById('icon-pause');
+  btn.classList.remove('loading-state');
+  if(state==='play'){ip.style.display='none';ipu.style.display='block';}
+  else if(state==='loading'){ip.style.display='none';ipu.style.display='none';btn.classList.add('loading-state');}
+  else{ip.style.display='block';ipu.style.display='none';}
+}
+function updateProgress() {
+  if(currentChapter<0)return;
+  const total=chapters[currentChapter]?.sentences.length||1;
+  document.getElementById('progress-fill').style.width=Math.round((currentSentence/total)*100)+'%';
+  document.getElementById('progress-text').textContent=`${currentSentence+1} / ${total} segmen`;
+}
+function updateCacheInfo() {
+  const count=Object.keys(audioCache).length;
+  document.getElementById('cache-info').innerHTML=count>0?`<span>${count}</span> audio di cache`:'';
+}
+function setStatus(msg,cls='') {
+  const el=document.getElementById('status-bar'); el.className='status-bar '+cls;
+  if(cls==='speaking')el.innerHTML=`<span class="dot speaking"></span>Sedang membaca...`;
+  else if(cls==='fetching')el.innerHTML=`<span class="dot fetching"></span>Mengambil audio dari Google...`;
+  else el.textContent=msg;
+}
+function showToast(msg) {
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._tid); t._tid=setTimeout(()=>t.classList.remove('show'),3500);
+}
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function resetBook() {
+  stopAudio(); clearCache(); chapters=[]; currentChapter=-1; currentSentence=0;
+  downloadedChapters.clear(); fileInput.value='';
+  document.getElementById('player-view').style.display='none';
+  uploadZone.classList.add('visible'); setStatus('Siap');
+}
+</script>
+<footer class="app-footer">Created by Bahrum Creative Tools</footer>
+
+</body>
+</html>

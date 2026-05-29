@@ -220,8 +220,8 @@ body.text-expanded .expand-btn svg.icon-collapse { display: block !important; }
 
 /* Expand button — floating in reading area */
 .expand-btn {
-  position: fixed; bottom: 108px; right: 20px;
-  width: 40px; height: 40px; border-radius: 50%;
+  position: fixed; bottom: 112px; right: 16px;
+  width: 36px; height: 36px; border-radius: 50%;
   background: var(--surface); border: 1px solid var(--border-strong);
   box-shadow: var(--shadow); color: var(--ink-dim);
   display: flex; align-items: center; justify-content: center;
@@ -229,7 +229,7 @@ body.text-expanded .expand-btn svg.icon-collapse { display: block !important; }
 }
 body.text-expanded .expand-btn { bottom: 20px; }
 .expand-btn:hover { color: var(--accent); border-color: var(--accent); }
-.expand-btn svg { width: 16px; height: 16px; }
+.expand-btn svg { width: 14px; height: 14px; }
 .expand-btn svg.icon-collapse { display: none; }
 
 /* ── BOTTOM PLAYER ── */
@@ -305,8 +305,8 @@ body.night .bottom-player { box-shadow: 0 -4px 32px rgba(0,0,0,0.3); }
   opacity: 0; background: var(--surface); border-bottom: 1px solid var(--border);
 }
 .voice-bar.open { max-height: 150px; opacity: 1; padding: 14px 20px 16px; }
-.voice-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
-.voice-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-muted); min-width: 44px; }
+.voice-row { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 12px; }
+.voice-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-muted); }
 .chip-group { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip {
   background: var(--surface2); border: 1px solid var(--border-strong); color: var(--ink-dim);
@@ -315,16 +315,17 @@ body.night .bottom-player { box-shadow: 0 -4px 32px rgba(0,0,0,0.3); }
 }
 .chip:hover { border-color: var(--accent); color: var(--ink); }
 .chip.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
-.speed-row { display: flex; align-items: center; gap: 10px; }
+.speed-row { display: flex; align-items: center; gap: 0; flex-wrap: wrap; row-gap: 10px; }
+.speed-group { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 input[type=range] {
-  flex: 1; height: 2px; -webkit-appearance: none; background: var(--border-strong);
+  flex: 1; min-width: 0; height: 2px; -webkit-appearance: none; background: var(--border-strong);
   border-radius: 2px; outline: none; cursor: pointer;
 }
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
   background: var(--accent); cursor: pointer;
 }
-.range-val { font-size: 0.72rem; color: var(--ink-dim); min-width: 38px; text-align: right; }
+.range-val { font-size: 0.72rem; color: var(--ink-dim); min-width: 28px; text-align: right; flex-shrink: 0; }
 
 /* ── BOTTOM SHEET (Chapter list) ── */
 .sheet-overlay {
@@ -429,6 +430,15 @@ input[type=range]::-webkit-slider-thumb {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
 
+/* ── DESKTOP — ensure proper centering & layout ── */
+@media (min-width: 481px) {
+  .bottom-player { max-width: 100%; }
+  .controls-row { max-width: 600px; margin: 0 auto; }
+  .reading-area { padding: 40px 48px 160px; }
+  .reading-text { max-width: 680px; }
+  .expand-btn { right: calc(50% - 380px); }
+}
+
 /* ── MOBILE ── */
 @media (max-width: 480px) {
   .reading-area { padding: 24px 18px 170px; }
@@ -520,12 +530,17 @@ input[type=range]::-webkit-slider-thumb {
       </div>
     </div>
     <div class="speed-row">
-      <span class="voice-label">Kecepatan</span>
-      <input type="range" id="speed-slider" min="0.75" max="1.5" step="0.05" value="1.0" oninput="updateSpeed(this.value)">
-      <span class="range-val" id="speed-val">1.0×</span>
-      <span class="voice-label" style="min-width:32px">Nada</span>
-      <input type="range" id="pitch-slider" min="-5" max="5" step="0.5" value="0" oninput="updatePitch(this.value)">
-      <span class="range-val" id="pitch-val">0</span>
+      <div class="speed-group">
+        <span class="voice-label">Kecepatan</span>
+        <input type="range" id="speed-slider" min="0.75" max="1.5" step="0.05" value="1.0" oninput="updateSpeed(this.value)">
+        <span class="range-val" id="speed-val">1.0×</span>
+      </div>
+      <div style="width:16px; flex-shrink:0;"></div>
+      <div class="speed-group">
+        <span class="voice-label">Nada</span>
+        <input type="range" id="pitch-slider" min="-5" max="5" step="0.5" value="0" oninput="updatePitch(this.value)">
+        <span class="range-val" id="pitch-val">0</span>
+      </div>
     </div>
   </div>
 
@@ -1040,6 +1055,6 @@ function resetBook() {
   document.body.classList.remove('text-expanded');
 }
 </script>
-<footer style="display:none">Created by Bahrum Creative Tools</footer>
+<footer style="text-align:center; padding: 24px 0 40px; font-size: 0.65rem; color: var(--ink-muted); letter-spacing: 0.12em; text-transform: uppercase; font-family: 'DM Sans', sans-serif;">Created by Bahrum Creative Tools</footer>
 </body>
 </html>

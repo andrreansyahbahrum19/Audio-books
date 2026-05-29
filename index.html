@@ -195,7 +195,6 @@ body {
 /* expand-to-fullscreen: hide bottom bar */
 body.text-expanded .reading-area { padding-bottom: 32px; }
 body.text-expanded .bottom-player { display: none !important; }
-body.text-expanded .collapse-fab { display: flex !important; }
 
 .reading-text {
   font-family: 'Lora', serif;
@@ -217,31 +216,19 @@ body.text-expanded .collapse-fab { display: flex !important; }
   border-radius: 3px;
 }
 
-/* Expand button — sits inside bottom player controls-right */
+/* Expand button — fixed top-right of reading area */
 .expand-btn {
-  width: 32px; height: 32px; border-radius: 50%;
-  background: var(--surface2); border: 1px solid var(--border-strong);
-  color: var(--ink-muted);
+  position: fixed; top: 70px; right: 14px;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow); color: var(--ink-muted);
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; transition: all 0.2s; flex-shrink: 0;
+  cursor: pointer; z-index: 20; transition: all 0.2s;
 }
 .expand-btn:hover { color: var(--accent); border-color: var(--accent); }
 .expand-btn svg { width: 13px; height: 13px; }
 .expand-btn svg.icon-collapse { display: none; }
-
-/* Collapse FAB — only visible when text is expanded */
-.collapse-fab {
-  display: none;
-  position: fixed; bottom: 20px; right: 20px;
-  width: 40px; height: 40px; border-radius: 50%;
-  background: var(--ink); color: var(--bg);
-  border: none; cursor: pointer; z-index: 40;
-  align-items: center; justify-content: center;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-  transition: all 0.2s;
-}
-.collapse-fab:hover { opacity: 0.85; }
-.collapse-fab svg { width: 15px; height: 15px; }
+body.text-expanded .expand-btn { top: 14px; right: 14px; }
 body.text-expanded .expand-btn svg.icon-expand { display: none; }
 body.text-expanded .expand-btn svg.icon-collapse { display: block !important; }
 
@@ -564,6 +551,18 @@ input[type=range]::-webkit-slider-thumb {
     </div>
   </div>
 
+  <!-- EXPAND BUTTON — fixed top-right -->
+  <button class="expand-btn" onclick="toggleExpand()" title="Perluas teks">
+    <svg class="icon-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
+      <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+    </svg>
+    <svg class="icon-collapse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/>
+      <line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/>
+    </svg>
+  </button>
+
   <!-- BOTTOM PLAYER -->
   <div class="bottom-player">
     <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
@@ -597,32 +596,14 @@ input[type=range]::-webkit-slider-thumb {
         </button>
       </div>
 
-      <!-- Right: progress + expand -->
+      <!-- Right: progress label -->
       <div class="controls-right">
         <span class="progress-label" id="progress-label">—</span>
-        <button class="expand-btn" onclick="toggleExpand()" title="Perluas teks">
-          <svg class="icon-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
-            <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
-          </svg>
-          <svg class="icon-collapse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/>
-            <line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/>
-          </svg>
-        </button>
       </div>
     </div>
     <div class="status-line" id="status-line">Siap</div>
   </div>
 </div>
-
-  <!-- COLLAPSE FAB (visible only in expanded/fullscreen mode) -->
-  <button class="collapse-fab" onclick="toggleExpand()" title="Kembali ke player">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/>
-      <line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/>
-    </svg>
-  </button>
 
 <!-- CHAPTER SHEET -->
 <div class="sheet-overlay" id="sheet-overlay" onclick="closeSheet()"></div>

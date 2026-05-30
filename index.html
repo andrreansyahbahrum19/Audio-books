@@ -470,9 +470,180 @@ input[type=range]::-webkit-slider-thumb {
   .btn-chapters { font-size: 0.68rem; padding: 5px 10px 5px 8px; }
   .progress-label { font-size: 0.65rem; }
 }
+
+/* ── LIBRARY SCREEN ── */
+#library-screen { display: none; min-height: 100vh; flex-direction: column; }
+.lib-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 20px 0; max-width: 680px; margin: 0 auto; width: 100%;
+}
+.lib-logo { display: flex; align-items: center; gap: 10px; }
+.lib-logo img { width: 36px; height: auto; }
+.lib-logo-text { font-family: 'Lora', serif; font-size: 1.1rem; font-weight: 500; }
+.lib-logo-text em { color: var(--accent); font-style: italic; }
+.lib-actions { display: flex; gap: 8px; align-items: center; }
+
+.lib-body { flex: 1; padding: 20px; max-width: 680px; margin: 0 auto; width: 100%; }
+.lib-section-title {
+  font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.14em;
+  color: var(--ink-muted); margin-bottom: 14px;
+}
+
+/* Book grid */
+.book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; margin-bottom: 28px; }
+@media (max-width: 480px) { .book-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; } }
+
+.book-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); overflow: hidden; cursor: pointer;
+  transition: all 0.2s; display: flex; flex-direction: column;
+}
+.book-card:hover { border-color: var(--accent); box-shadow: var(--shadow); transform: translateY(-2px); }
+.book-cover {
+  aspect-ratio: 2/3; background: var(--surface2);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; position: relative;
+}
+.book-cover img { width: 100%; height: 100%; object-fit: cover; }
+.book-cover-placeholder {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 16px; text-align: center; height: 100%;
+}
+.book-cover-placeholder .book-icon { font-size: 2rem; opacity: 0.4; }
+.book-cover-placeholder .book-initials {
+  font-family: 'Lora', serif; font-size: 0.75rem; color: var(--ink-muted);
+  line-height: 1.3; max-height: 3.9em; overflow: hidden;
+}
+.book-progress-bar { height: 3px; background: var(--border-strong); }
+.book-progress-fill { height: 100%; background: var(--accent); transition: width 0.3s; }
+.book-info { padding: 10px 10px 12px; flex: 1; }
+.book-title { font-size: 0.78rem; font-weight: 500; color: var(--ink-dim); line-height: 1.4; margin-bottom: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.book-meta { font-size: 0.62rem; color: var(--ink-muted); }
+.book-card-menu {
+  position: absolute; top: 6px; right: 6px;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: rgba(250,247,242,0.9); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.2s; color: var(--ink-dim);
+}
+.book-cover:hover .book-card-menu { opacity: 1; }
+.book-card-menu svg { width: 13px; height: 13px; }
+
+/* Upload button in library */
+.btn-upload-lib {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--accent); border: none; color: #fff;
+  font-family: 'DM Sans', sans-serif; font-weight: 500; font-size: 0.82rem;
+  padding: 10px 16px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s;
+}
+.btn-upload-lib:hover { opacity: 0.88; }
+.btn-upload-lib svg { width: 16px; height: 16px; }
+
+/* Empty state */
+.lib-empty {
+  text-align: center; padding: 60px 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.lib-empty-icon { font-size: 3rem; opacity: 0.25; }
+.lib-empty-text { font-family: 'Lora', serif; font-style: italic; color: var(--ink-muted); font-size: 0.95rem; }
+.lib-empty-sub { font-size: 0.75rem; color: var(--ink-muted); }
+
+/* Loading skeleton */
+.skeleton { background: linear-gradient(90deg, var(--surface2) 25%, var(--border-strong) 50%, var(--surface2) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 6px; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* Context menu */
+.ctx-menu {
+  position: fixed; background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-heavy);
+  z-index: 100; min-width: 160px; overflow: hidden; display: none;
+}
+.ctx-menu.show { display: block; }
+.ctx-item {
+  padding: 11px 16px; font-size: 0.82rem; color: var(--ink-dim); cursor: pointer;
+  display: flex; align-items: center; gap: 10px; transition: background 0.15s;
+}
+.ctx-item:hover { background: var(--surface2); }
+.ctx-item.danger { color: var(--red); }
+.ctx-item svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* Upload progress in library */
+.upload-progress-bar {
+  width: 100%; max-width: 680px; margin: 0 auto;
+  background: var(--surface); border-top: 1px solid var(--border);
+  padding: 12px 20px; display: none; align-items: center; gap: 12px;
+}
+.upload-progress-bar.show { display: flex; }
+.upload-prog-track { flex: 1; height: 3px; background: var(--border-strong); border-radius: 2px; overflow: hidden; }
+.upload-prog-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; width: 0%; }
+.upload-prog-label { font-size: 0.7rem; color: var(--ink-muted); white-space: nowrap; }
 </style>
 </head>
 <body>
+
+<!-- ═══════════════════════════════════════════════
+     LIBRARY SCREEN
+══════════════════════════════════════════════════ -->
+<div id="library-screen">
+  <div class="lib-header">
+    <div class="lib-logo">
+      <img src="logo_Audio_books.webp" alt="Logo">
+      <div class="lib-logo-text">Audio <em>Books</em></div>
+    </div>
+    <div class="lib-actions">
+      <button class="btn-icon" onclick="toggleNight()" title="Night mode">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+      <button class="btn-upload-lib" onclick="document.getElementById('lib-file-input').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        Upload EPUB
+      </button>
+      <input type="file" id="lib-file-input" accept=".epub" style="display:none">
+    </div>
+  </div>
+
+  <div class="lib-body">
+    <div class="lib-section-title">Perpustakaan saya</div>
+    <div class="book-grid" id="book-grid">
+      <!-- populated by JS -->
+    </div>
+    <div class="lib-empty" id="lib-empty" style="display:none">
+      <div class="lib-empty-icon">📚</div>
+      <div class="lib-empty-text">Perpustakaan masih kosong</div>
+      <div class="lib-empty-sub">Upload file EPUB pertama lo</div>
+      <button class="btn-upload-lib" onclick="document.getElementById('lib-file-input').click()" style="margin-top:8px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        Upload EPUB
+      </button>
+    </div>
+  </div>
+
+  <!-- Upload progress -->
+  <div class="upload-progress-bar" id="upload-progress-bar">
+    <div class="upload-prog-track"><div class="upload-prog-fill" id="upload-prog-fill"></div></div>
+    <div class="upload-prog-label" id="upload-prog-label">Mengupload...</div>
+  </div>
+</div>
+
+<!-- Context menu -->
+<div class="ctx-menu" id="ctx-menu">
+  <div class="ctx-item" onclick="ctxOpen()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+    Buka buku
+  </div>
+  <div class="ctx-item danger" onclick="ctxDelete()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+    Hapus buku
+  </div>
+</div>
 
 <!-- ═══════════════════════════════════════════════
      SETUP SCREEN
@@ -667,8 +838,14 @@ input[type=range]::-webkit-slider-thumb {
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
+// ── SUPABASE ──
+const SUPA_URL = 'https://bnjbqdjognowfqqgxkpu.supabase.co';
+const SUPA_KEY = 'sb_publishable_No8ZHPTXSW1XgqzjVJphMg_oYT2-H9H';
+const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+
 // ── STATE ──
 let apiKey = '';
 let selectedVoice = 'id-ID-Wavenet-A';
@@ -796,7 +973,21 @@ function clearSavedKey() {
 function showApiConnected() {
   document.getElementById('api-panel').classList.add('connected');
   document.getElementById('api-connected-badge').classList.add('show');
-  document.getElementById('upload-zone').style.display = 'block';
+  document.getElementById('upload-zone').style.display = 'none'; // handled by library now
+  // Handle pending actions after connect
+  if (window._pendingEpub) {
+    const f = window._pendingEpub; window._pendingEpub = null;
+    document.getElementById('setup-screen').style.display = 'none';
+    showLibrary().then(() => uploadEpubToSupabase(f));
+  } else if (window._pendingBookId) {
+    const id = window._pendingBookId; window._pendingBookId = null;
+    document.getElementById('setup-screen').style.display = 'none';
+    showLibrary().then(() => openBook(id));
+  } else {
+    // Just go to library
+    document.getElementById('setup-screen').style.display = 'none';
+    showLibrary();
+  }
 }
 function resetApiConnection() {
   document.getElementById('api-panel').classList.remove('connected');
@@ -877,10 +1068,7 @@ async function finalizeSWDownload(chapterIdx, base64Chunks, chapterTitle, bTitle
 function setApiStatus(msg, cls) {
   const el = document.getElementById('api-status'); el.textContent = msg; el.className = 'field-status ' + cls;
 }
-window.addEventListener('DOMContentLoaded', () => {
-  autoFillKey();
-  loadSettings();
-});
+window.addEventListener('DOMContentLoaded', initApp);
 
 // ── UPLOAD ──
 const uploadZone = document.getElementById('upload-zone');
@@ -989,6 +1177,7 @@ function loadChapter(idx) {
   currentChapter = idx; currentSentence = 0;
   setActiveChapter(idx);
   document.getElementById('chapter-tag-top').textContent = `Bab ${idx+1} / ${chapters.length}`;
+  saveProgress();
   document.getElementById('ch-label-btn').textContent = `Bab ${idx+1}`;
   renderTextPanel(); updateProgress();
 }
@@ -1203,12 +1392,264 @@ function showToast(msg) {
   clearTimeout(t._tid); t._tid = setTimeout(() => t.classList.remove('show'), 3500);
 }
 function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// ── LIBRARY ──
+let ctxBookId = null;
+let libraryBooks = [];
+
+async function initApp() {
+  // Load night mode pref
+  if (localStorage.getItem('reader_night') === '1') { isNight = true; document.body.classList.add('night'); }
+  loadSettings();
+
+  // Check API key
+  const savedKey = localStorage.getItem(LS_KEY);
+  if (savedKey) {
+    apiKey = savedKey;
+    // Validate silently
+    try {
+      const res = await fetch(`https://texttospeech.googleapis.com/v1/voices?key=${savedKey}`);
+      if (res.ok) { showApiConnected(); }
+      else { apiKey = ''; }
+    } catch(e) { apiKey = ''; }
+  }
+
+  // Always show library first
+  showLibrary();
+}
+
+async function showLibrary() {
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('reader-screen').style.display = 'none';
+  document.getElementById('library-screen').style.display = 'flex';
+  document.getElementById('library-screen').style.flexDirection = 'column';
+  await loadBooks();
+}
+
+async function loadBooks() {
+  const grid = document.getElementById('book-grid');
+  const empty = document.getElementById('lib-empty');
+
+  // Show skeletons
+  grid.innerHTML = Array(4).fill('').map(() => `
+    <div class="book-card">
+      <div class="book-cover skeleton" style="aspect-ratio:2/3;"></div>
+      <div class="book-info">
+        <div class="skeleton" style="height:12px;border-radius:4px;margin-bottom:6px;"></div>
+        <div class="skeleton" style="height:10px;border-radius:4px;width:60%;"></div>
+      </div>
+    </div>`).join('');
+
+  try {
+    const { data, error } = await supa.from('books').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    libraryBooks = data || [];
+    renderBookGrid(libraryBooks);
+  } catch(e) {
+    grid.innerHTML = '';
+    empty.style.display = 'flex';
+    showToast('Gagal load perpustakaan: ' + e.message);
+  }
+}
+
+function renderBookGrid(books) {
+  const grid = document.getElementById('book-grid');
+  const empty = document.getElementById('lib-empty');
+  if (!books.length) { grid.innerHTML = ''; empty.style.display = 'flex'; return; }
+  empty.style.display = 'none';
+  grid.innerHTML = books.map(b => {
+    const pct = b.progress_pct || 0;
+    const coverHtml = b.cover_url
+      ? `<img src="${b.cover_url}" alt="${escHtml(b.title)}" loading="lazy">`
+      : `<div class="book-cover-placeholder"><div class="book-icon">📖</div><div class="book-initials">${escHtml(b.title)}</div></div>`;
+    return `
+      <div class="book-card" onclick="openBook('${b.id}')">
+        <div class="book-cover" style="position:relative;">
+          ${coverHtml}
+          <button class="book-card-menu" onclick="openCtx(event,'${b.id}')" title="Opsi">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="5" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="19" r="1" fill="currentColor"/>
+            </svg>
+          </button>
+        </div>
+        <div class="book-progress-bar"><div class="book-progress-fill" style="width:${pct}%"></div></div>
+        <div class="book-info">
+          <div class="book-title">${escHtml(b.title)}</div>
+          <div class="book-meta">${b.chapter_count || 0} bab · ${pct}% dibaca</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// Upload EPUB to Supabase
+document.getElementById('lib-file-input').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = '';
+  await uploadEpubToSupabase(file);
+});
+
+async function uploadEpubToSupabase(file) {
+  if (!apiKey) {
+    // Show setup to get API key first
+    document.getElementById('library-screen').style.display = 'none';
+    document.getElementById('setup-screen').style.display = 'flex';
+    // After connect, remember pending file
+    window._pendingEpub = file;
+    showToast('Sambungkan API key dulu');
+    return;
+  }
+
+  const progBar = document.getElementById('upload-progress-bar');
+  const progFill = document.getElementById('upload-prog-fill');
+  const progLabel = document.getElementById('upload-prog-label');
+  progBar.classList.add('show');
+  progFill.style.width = '10%';
+  progLabel.textContent = 'Membaca EPUB...';
+
+  try {
+    // Parse EPUB first to get metadata
+    const ab = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(ab);
+    const containerXml = await zip.file('META-INF/container.xml').async('text');
+    const containerDoc = new DOMParser().parseFromString(containerXml, 'application/xml');
+    const rootfilePath = containerDoc.querySelector('rootfile').getAttribute('full-path');
+    const rootDir = rootfilePath.includes('/') ? rootfilePath.split('/').slice(0,-1).join('/') + '/' : '';
+    const opfText = await zip.file(rootfilePath).async('text');
+    const opfDoc = new DOMParser().parseFromString(opfText, 'application/xml');
+    const title = opfDoc.querySelector('title')?.textContent?.trim() || file.name.replace('.epub','');
+
+    // Count chapters
+    const spineItems = [...opfDoc.querySelectorAll('spine itemref')].map(el => el.getAttribute('idref'));
+    const manifestMap = {};
+    [...opfDoc.querySelectorAll('manifest item')].forEach(el => { manifestMap[el.getAttribute('id')] = { href: el.getAttribute('href'), type: el.getAttribute('media-type') }; });
+    let chCount = 0;
+    for (const id of spineItems) { const it = manifestMap[id]; if (it?.type?.includes('html')) chCount++; }
+
+    // Try get cover image
+    progFill.style.width = '30%'; progLabel.textContent = 'Mengupload file...';
+    let coverUrl = null;
+    const coverId = opfDoc.querySelector('meta[name="cover"]')?.getAttribute('content');
+    if (coverId && manifestMap[coverId]) {
+      const coverPath = rootDir + manifestMap[coverId].href;
+      const coverFile = zip.file(coverPath) || zip.file(manifestMap[coverId].href);
+      if (coverFile) {
+        const coverBytes = await coverFile.async('arraybuffer');
+        const ext = manifestMap[coverId].href.split('.').pop().toLowerCase();
+        const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png';
+        const coverBlob = new Blob([coverBytes], { type: mime });
+        const coverName = `covers/${Date.now()}_cover.${ext}`;
+        const { data: cvData } = await supa.storage.from('epub-files').upload(coverName, coverBlob, { contentType: mime });
+        if (cvData) {
+          const { data: pubData } = supa.storage.from('epub-files').getPublicUrl(coverName);
+          coverUrl = pubData?.publicUrl || null;
+        }
+      }
+    }
+
+    // Upload EPUB file
+    progFill.style.width = '60%'; progLabel.textContent = 'Menyimpan ke perpustakaan...';
+    const epubName = `epubs/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+    const { data: epubData, error: epubErr } = await supa.storage.from('epub-files').upload(epubName, file, { contentType: 'application/epub+zip' });
+    if (epubErr) throw epubErr;
+    const { data: epubPub } = supa.storage.from('epub-files').getPublicUrl(epubName);
+
+    // Save metadata to DB
+    progFill.style.width = '85%'; progLabel.textContent = 'Menyimpan metadata...';
+    const { data: bookData, error: dbErr } = await supa.from('books').insert({
+      title, cover_url: coverUrl, epub_url: epubPub.publicUrl,
+      chapter_count: chCount, progress_pct: 0, current_chapter: 0
+    }).select().single();
+    if (dbErr) throw dbErr;
+
+    progFill.style.width = '100%'; progLabel.textContent = 'Selesai!';
+    setTimeout(() => { progBar.classList.remove('show'); progFill.style.width = '0%'; }, 1500);
+    showToast(`"${title}" berhasil diupload!`);
+    await loadBooks();
+
+  } catch(e) {
+    progBar.classList.remove('show');
+    showToast('Upload gagal: ' + e.message);
+    console.error(e);
+  }
+}
+
+async function openBook(bookId) {
+  const book = libraryBooks.find(b => b.id === bookId);
+  if (!book) return;
+
+  if (!book.epub_url) { showToast('File EPUB tidak ditemukan'); return; }
+
+  // Check API key
+  if (!apiKey) {
+    window._pendingBookId = bookId;
+    document.getElementById('library-screen').style.display = 'none';
+    document.getElementById('setup-screen').style.display = 'flex';
+    showToast('Sambungkan API key dulu');
+    return;
+  }
+
+  showToast('Memuat buku...');
+  try {
+    const res = await fetch(book.epub_url);
+    const ab = await res.arrayBuffer();
+    const file = new File([ab], book.title + '.epub', { type: 'application/epub+zip' });
+    document.getElementById('library-screen').style.display = 'none';
+    await loadEpubFromLibrary(file, book);
+  } catch(e) {
+    showToast('Gagal memuat: ' + e.message);
+  }
+}
+
+async function loadEpubFromLibrary(file, bookMeta) {
+  // Same as loadEpub but also saves progress to Supabase
+  window._currentBookMeta = bookMeta;
+  await loadEpub(file);
+  // Restore progress
+  if (bookMeta.current_chapter > 0) {
+    loadChapter(bookMeta.current_chapter);
+    showToast(`Lanjut dari bab ${bookMeta.current_chapter + 1}`);
+  }
+}
+
+// Save reading progress to Supabase
+async function saveProgress() {
+  const meta = window._currentBookMeta;
+  if (!meta || currentChapter < 0) return;
+  const pct = Math.round((currentChapter / Math.max(chapters.length - 1, 1)) * 100);
+  await supa.from('books').update({ current_chapter: currentChapter, progress_pct: pct }).eq('id', meta.id);
+}
+
+// Context menu
+function openCtx(e, bookId) {
+  e.stopPropagation();
+  ctxBookId = bookId;
+  const menu = document.getElementById('ctx-menu');
+  menu.classList.add('show');
+  menu.style.top = Math.min(e.clientY, window.innerHeight - 100) + 'px';
+  menu.style.left = Math.min(e.clientX, window.innerWidth - 170) + 'px';
+}
+function ctxOpen() { closeCtx(); openBook(ctxBookId); }
+async function ctxDelete() {
+  closeCtx();
+  const book = libraryBooks.find(b => b.id === ctxBookId);
+  if (!book) return;
+  if (!confirm(`Hapus "${book.title}" dari perpustakaan?`)) return;
+  try {
+    await supa.from('books').delete().eq('id', book.id);
+    showToast('Buku dihapus');
+    await loadBooks();
+  } catch(e) { showToast('Gagal hapus: ' + e.message); }
+}
+function closeCtx() { document.getElementById('ctx-menu').classList.remove('show'); }
+document.addEventListener('click', closeCtx);
+
 function resetBook() {
   stopAudio(); chapters = []; currentChapter = -1; currentSentence = 0;
-  downloadedChapters.clear(); fileInput.value = '';
+  downloadedChapters.clear();
+  window._currentBookMeta = null;
   document.getElementById('reader-screen').style.display = 'none';
-  document.getElementById('setup-screen').style.display = 'flex';
   document.body.classList.remove('text-expanded');
+  showLibrary();
 }
 </script>
 

@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Audio Books — Google TTS</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f5f0e8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#18150f" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Audio Books">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
 <style>
@@ -139,6 +146,21 @@ body {
 .field-status.loading { color: var(--ink-muted); }
 .btn-text { background: none; border: none; color: var(--ink-muted); font-family: 'DM Sans', sans-serif; font-size: 0.72rem; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; margin-top: 8px; display: inline-block; }
 .btn-text:hover { color: var(--red); }
+.setup-card.connected { display: none; }
+.api-connected-badge {
+  display: none; align-items: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius); padding: 16px 20px;
+  width: 100%; max-width: 420px;
+  box-shadow: var(--shadow);
+}
+.api-connected-badge.show { display: flex; }
+.api-badge-icon { font-size: 1.4rem; }
+.api-badge-info { flex: 1; }
+.api-badge-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-muted); margin-bottom: 2px; }
+.api-badge-status { font-size: 0.88rem; color: var(--green); font-weight: 500; }
+.btn-api-reset { background: none; border: none; font-size: 0.7rem; color: var(--ink-muted); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.btn-api-reset:hover { color: var(--red); }
 
 /* Upload zone */
 .upload-zone {
@@ -456,9 +478,11 @@ input[type=range]::-webkit-slider-thumb {
      SETUP SCREEN
 ══════════════════════════════════════════════════ -->
 <div id="setup-screen">
-  <div>
+  <div style="display:flex; flex-direction:column; align-items:center; gap:0;">
+    <img src="logo_Audio_books.webp" alt="Audio Books Logo"
+         style="width:110px; height:110px; object-fit:contain; margin-bottom:4px;">
     <div class="setup-logo">Audio <em>Books</em></div>
-    <div class="setup-sub" style="margin-top:6px">Google WaveNet · EPUB · Bahasa Indonesia</div>
+    <div class="setup-sub" style="margin-top:4px">Google WaveNet · EPUB · Bahasa Indonesia</div>
   </div>
 
   <!-- API PANEL -->
@@ -474,6 +498,16 @@ input[type=range]::-webkit-slider-thumb {
     <p class="field-hint">Buat API key di <a href="https://console.cloud.google.com/apis/credentials" target="_blank">console.cloud.google.com</a>. Key disimpan di browser, tidak dikirim ke server.</p>
     <p class="field-status" id="api-status"></p>
     <button class="btn-text" id="btn-clear-key" onclick="clearSavedKey()" style="display:none">🗑 Hapus key tersimpan</button>
+  </div>
+
+  <!-- CONNECTED BADGE — shows after API connected -->
+  <div class="api-connected-badge" id="api-connected-badge">
+    <div class="api-badge-icon">🔑</div>
+    <div class="api-badge-info">
+      <div class="api-badge-label">Google Cloud TTS</div>
+      <div class="api-badge-status">✓ Terhubung &amp; siap</div>
+    </div>
+    <button class="btn-api-reset" onclick="resetApiConnection()">Ganti key</button>
   </div>
 
   <!-- UPLOAD -->
@@ -725,6 +759,8 @@ function autoFillKey() {
     document.getElementById('api-key-input').value = saved;
     document.getElementById('btn-clear-key').style.display = 'inline';
     setApiStatus('Key tersimpan ditemukan — klik Sambungkan', 'loading');
+    // Auto-connect silently
+    setTimeout(() => connectApi(), 300);
   }
   if (localStorage.getItem('reader_night') === '1') { isNight = true; document.body.classList.add('night'); }
 }
@@ -741,6 +777,7 @@ async function connectApi() {
     document.getElementById('btn-clear-key').style.display = 'inline';
     setApiStatus('✓ Terhubung · Google WaveNet siap', 'ok');
     document.getElementById('upload-zone').style.display = 'block';
+    showApiConnected();
     showToast('Google TTS terhubung!');
   } catch(e) {
     setApiStatus('❌ ' + e.message, 'err');
@@ -756,10 +793,94 @@ function clearSavedKey() {
   setApiStatus('Key dihapus', 'loading');
   showToast('Key berhasil dihapus');
 }
+function showApiConnected() {
+  document.getElementById('api-panel').classList.add('connected');
+  document.getElementById('api-connected-badge').classList.add('show');
+  document.getElementById('upload-zone').style.display = 'block';
+}
+function resetApiConnection() {
+  document.getElementById('api-panel').classList.remove('connected');
+  document.getElementById('api-connected-badge').classList.remove('show');
+  apiKey = '';
+  document.getElementById('upload-zone').style.display = 'none';
+  setApiStatus('', '');
+}
+
+// ── SERVICE WORKER REGISTRATION ──
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('/Audio-books/sw.js', { scope: '/Audio-books/' });
+      console.log('SW registered:', reg.scope);
+      // Listen for messages from SW (download progress)
+      navigator.serviceWorker.addEventListener('message', handleSWMessage);
+    } catch(e) {
+      console.warn('SW registration failed:', e);
+    }
+  });
+}
+
+function handleSWMessage(event) {
+  const { type, chapterIdx, current, total, chunks, chapterTitle, bookTitle: bTitle, error } = event.data || {};
+  if (type === 'DL_PROGRESS') {
+    const pct = Math.round((current / total) * 100);
+    document.getElementById('dl-progress-fill').style.width = pct + '%';
+    document.getElementById('dl-info').textContent = `Segmen ${current} / ${total}`;
+    // Show toast if page was in background
+    if (document.hidden) showToast(`Download ${pct}% — Bab ${chapterIdx + 1}`);
+  }
+  if (type === 'DL_COMPLETE') {
+    finalizeSWDownload(chapterIdx, chunks, chapterTitle, bTitle || bookTitle);
+  }
+  if (type === 'DL_CANCELLED') {
+    document.getElementById('dl-modal').classList.remove('show');
+    const btn = document.getElementById('btn-dl-' + chapterIdx);
+    if (btn) { btn.className = 'ch-dl-btn'; btn.textContent = '⬇ MP3'; }
+    showToast('Download dibatalkan');
+  }
+  if (type === 'DL_ERROR') {
+    document.getElementById('dl-modal').classList.remove('show');
+    const btn = document.getElementById('btn-dl-' + chapterIdx);
+    if (btn) { btn.className = 'ch-dl-btn'; btn.textContent = '⬇ MP3'; }
+    showToast('Error: ' + error);
+  }
+  if (type === 'DL_STARTED') {
+    document.getElementById('dl-modal').classList.add('show');
+    document.getElementById('dl-progress-fill').style.width = Math.round((event.data.resumedFrom / total) * 100) + '%';
+    document.getElementById('dl-info').textContent = `Melanjutkan dari segmen ${event.data.resumedFrom + 1}...`;
+  }
+}
+
+async function finalizeSWDownload(chapterIdx, base64Chunks, chapterTitle, bTitle) {
+  document.getElementById('dl-modal').classList.remove('show');
+  // Merge base64 chunks → single MP3 blob
+  const byteArrays = base64Chunks.map(b64 => {
+    const binary = atob(b64); const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  });
+  const totalLen = byteArrays.reduce((a, b) => a + b.byteLength, 0);
+  const merged = new Uint8Array(totalLen); let offset = 0;
+  for (const arr of byteArrays) { merged.set(arr, offset); offset += arr.byteLength; }
+  const blob = new Blob([merged], { type: 'audio/mpeg' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const safeName = `${bTitle} - Bab ${String(chapterIdx + 1).padStart(2, '0')} - ${chapterTitle}`.replace(/[/\?%*:|"<>]/g, '-');
+  a.href = url; a.download = safeName + '.mp3';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  downloadedChapters.add(chapterIdx);
+  const btn = document.getElementById('btn-dl-' + chapterIdx);
+  if (btn) { btn.className = 'ch-dl-btn done'; btn.textContent = '✓'; }
+  showToast(`Bab ${chapterIdx + 1} selesai didownload!`);
+}
 function setApiStatus(msg, cls) {
   const el = document.getElementById('api-status'); el.textContent = msg; el.className = 'field-status ' + cls;
 }
-window.addEventListener('DOMContentLoaded', autoFillKey);
+window.addEventListener('DOMContentLoaded', () => {
+  autoFillKey();
+  loadSettings();
+});
 
 // ── UPLOAD ──
 const uploadZone = document.getElementById('upload-zone');
@@ -877,38 +998,51 @@ async function downloadChapter(chIdx, e) {
   e.stopPropagation();
   if (!apiKey) { showToast('Sambungkan API key dulu'); return; }
   const ch = chapters[chIdx]; if (!ch) return;
-  dlCancelled = false;
-  const modal = document.getElementById('dl-modal');
-  const dlFill = document.getElementById('dl-progress-fill');
-  const dlInfo = document.getElementById('dl-info');
   const btn = document.getElementById(`btn-dl-${chIdx}`);
   btn.className = 'ch-dl-btn loading'; btn.textContent = '...';
   document.getElementById('dl-chapter-name').textContent = `Bab ${chIdx+1}: ${ch.title}`;
-  dlFill.style.width = '0%'; dlInfo.textContent = 'Memulai...'; modal.classList.add('show');
-  const mp3Chunks = []; const total = ch.sentences.length;
-  for (let i = 0; i < total; i++) {
-    if (dlCancelled) break;
-    dlFill.style.width = Math.round((i/total)*100) + '%';
-    dlInfo.textContent = `Segmen ${i+1} / ${total}`;
-    try { mp3Chunks.push(await fetchAudioRaw(ch.sentences[i])); }
-    catch(err) { modal.classList.remove('show'); btn.className = 'ch-dl-btn'; btn.textContent = '⬇ MP3'; showToast('Gagal: ' + err.message); return; }
+  document.getElementById('dl-progress-fill').style.width = '0%';
+  document.getElementById('dl-info').textContent = 'Memulai...';
+
+  if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: 'START_DOWNLOAD',
+      payload: { chapterIdx: chIdx, sentences: ch.sentences, apiKey, voice: selectedVoice, gender: selectedGender, speed: speechRate, pitch: pitchVal, bookTitle, chapterTitle: ch.title }
+    });
+    showToast('Download dimulai — bisa pindah tab!');
+  } else {
+    document.getElementById('dl-modal').classList.add('show');
+    const mp3Chunks = []; const total = ch.sentences.length;
+    for (let i = 0; i < total; i++) {
+      document.getElementById('dl-progress-fill').style.width = Math.round((i/total)*100) + '%';
+      document.getElementById('dl-info').textContent = `Segmen ${i+1} / ${total}`;
+      try { mp3Chunks.push(await fetchAudioRaw(ch.sentences[i])); }
+      catch(err) { document.getElementById('dl-modal').classList.remove('show'); btn.className = 'ch-dl-btn'; btn.textContent = '⬇ MP3'; showToast('Gagal: ' + err.message); return; }
+    }
+    document.getElementById('dl-modal').classList.remove('show');
+    const totalLen = mp3Chunks.reduce((a,b) => a + b.byteLength, 0);
+    const merged = new Uint8Array(totalLen); let offset = 0;
+    for (const chunk of mp3Chunks) { merged.set(new Uint8Array(chunk), offset); offset += chunk.byteLength; }
+    const blob = new Blob([merged], { type: 'audio/mpeg' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safeName = `${bookTitle} - Bab ${String(chIdx+1).padStart(2,'0')} - ${ch.title}`.replace(/[/\\?%*:|"<>]/g,'-');
+    a.href = url; a.download = `${safeName}.mp3`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    downloadedChapters.add(chIdx);
+    btn.className = 'ch-dl-btn done'; btn.textContent = '✓';
+    showToast(`Bab ${chIdx+1} berhasil didownload!`);
   }
-  modal.classList.remove('show');
-  if (dlCancelled) { btn.className = 'ch-dl-btn'; btn.textContent = '⬇ MP3'; showToast('Download dibatalkan'); return; }
-  const totalLen = mp3Chunks.reduce((a,b) => a + b.byteLength, 0);
-  const merged = new Uint8Array(totalLen); let offset = 0;
-  for (const chunk of mp3Chunks) { merged.set(new Uint8Array(chunk), offset); offset += chunk.byteLength; }
-  const blob = new Blob([merged], { type: 'audio/mpeg' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  const safeName = `${bookTitle} - Bab ${String(chIdx+1).padStart(2,'0')} - ${ch.title}`.replace(/[/\\?%*:|"<>]/g,'-');
-  a.href = url; a.download = `${safeName}.mp3`; document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
-  downloadedChapters.add(chIdx);
-  btn.className = 'ch-dl-btn done'; btn.textContent = '✓';
-  showToast(`Bab ${chIdx+1} berhasil didownload!`);
 }
-function cancelDownload() { dlCancelled = true; }
+function cancelDownload() {
+  if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+    const chIdx = parseInt(document.getElementById('dl-chapter-name').dataset.idx || 0);
+    navigator.serviceWorker.controller.postMessage({ type: 'CANCEL_DOWNLOAD', payload: { chapterIdx: chIdx } });
+  }
+  dlCancelled = true;
+  document.getElementById('dl-modal').classList.remove('show');
+}
 
 // ── TTS ──
 async function fetchAudioRaw(text) {
@@ -1032,15 +1166,37 @@ function setStatus(msg, cls='') {
   else el.textContent = msg || '';
 }
 
+function saveSettings() {
+  localStorage.setItem('ab_voice', selectedVoice);
+  localStorage.setItem('ab_gender', selectedGender);
+  localStorage.setItem('ab_speed', speechRate);
+  localStorage.setItem('ab_pitch', pitchVal);
+}
+function loadSettings() {
+  const v = localStorage.getItem('ab_voice');
+  const g = localStorage.getItem('ab_gender');
+  const s = localStorage.getItem('ab_speed');
+  const p = localStorage.getItem('ab_pitch');
+  if (v) { selectedVoice = v; selectedGender = g || 'FEMALE'; }
+  if (s) { speechRate = parseFloat(s); document.getElementById('speed-slider').value = speechRate; document.getElementById('speed-val').textContent = speechRate.toFixed(2).replace(/\.?0+$/,'') + '×'; }
+  if (p) { pitchVal = parseFloat(p); document.getElementById('pitch-slider').value = pitchVal; document.getElementById('pitch-val').textContent = (pitchVal>=0?'+':'') + pitchVal; }
+  // Set active chip
+  if (v) {
+    document.querySelectorAll('.chip[data-voice]').forEach(c => {
+      c.classList.toggle('active', c.dataset.voice === v);
+    });
+  }
+}
 function selectVoice(el) {
   selectedVoice = el.dataset.voice; selectedGender = el.dataset.gender;
   document.querySelectorAll('.chip[data-voice]').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   Object.keys(audioCache).forEach(k => { URL.revokeObjectURL(audioCache[k]); delete audioCache[k]; });
+  saveSettings();
   if (isPlaying) { stopAudio(); startPlaying(); }
 }
-function updateSpeed(val) { speechRate = parseFloat(val); document.getElementById('speed-val').textContent = speechRate.toFixed(2).replace(/\.?0+$/,'') + '×'; }
-function updatePitch(val) { pitchVal = parseFloat(val); document.getElementById('pitch-val').textContent = (pitchVal>=0?'+':'') + pitchVal; }
+function updateSpeed(val) { speechRate = parseFloat(val); document.getElementById('speed-val').textContent = speechRate.toFixed(2).replace(/\.?0+$/,'') + '×'; saveSettings(); }
+function updatePitch(val) { pitchVal = parseFloat(val); document.getElementById('pitch-val').textContent = (pitchVal>=0?'+':'') + pitchVal; saveSettings(); }
 
 function showToast(msg) {
   const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');

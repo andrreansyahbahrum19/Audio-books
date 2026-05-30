@@ -1122,9 +1122,9 @@ async function loadEpub(file) {
     // Switch screens
     document.getElementById('setup-screen').style.display = 'none';
     document.getElementById('reader-screen').style.display = 'flex';
-    loadChapter(0);
     setStatus('Siap diputar');
     showToast(`"${bookTitle}" berhasil dimuat!`);
+    return true; // signal success
   } catch(e) {
     console.error(e);
     setStatus('Gagal memuat: ' + e.message, 'err');
@@ -1602,18 +1602,27 @@ async function openBook(bookId) {
 }
 
 async function loadEpubFromLibrary(file, bookMeta) {
-  // Same as loadEpub but also saves progress to Supabase
   window._currentBookMeta = bookMeta;
-  await loadEpub(file);
-  // Restore progress
-  const resumeCh = bookMeta.current_chapter || 0;
-  const resumeSent = bookMeta.current_sentence || 0;
+
+  // Fetch fresh progress from Supabase (avoid stale cache)
+  let resumeCh = 0, resumeSent = 0;
+  try {
+    const { data } = await supa.from('books').select('current_chapter, current_sentence').eq('id', bookMeta.id).single();
+    if (data) { resumeCh = data.current_chapter || 0; resumeSent = data.current_sentence || 0; }
+  } catch(e) { /* fallback to bookMeta */ resumeCh = bookMeta.current_chapter || 0; resumeSent = bookMeta.current_sentence || 0; }
+
+  const ok = await loadEpub(file);
+  if (!ok) return;
+
+  // Restore chapter & sentence after epub fully parsed
   if (resumeCh > 0 || resumeSent > 0) {
     loadChapter(resumeCh);
     currentSentence = resumeSent;
     renderTextPanel(resumeSent);
     updateProgress();
     showToast(`Lanjut dari bab ${resumeCh + 1}, kalimat ${resumeSent + 1}`);
+  } else {
+    loadChapter(0);
   }
 }
 

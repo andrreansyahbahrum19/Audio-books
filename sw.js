@@ -1,7 +1,7 @@
 // Audio Books — Service Worker
 // Handles background download queue via IndexedDB
 
-const CACHE_NAME = 'audiobooks-v1';
+const CACHE_NAME = 'audiobooks-v2';
 const STATIC_ASSETS = [
   '/Audio-books/',
   '/Audio-books/index.html',

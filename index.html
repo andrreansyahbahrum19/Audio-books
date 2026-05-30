@@ -1271,6 +1271,7 @@ async function playSentence(idx) {
     return;
   }
   currentSentence = idx; updateProgress(); renderTextPanel(idx);
+  if (idx % 5 === 0) saveProgress(); // save every 5 sentences
   setStatus('', 'fetching'); setPlayState('loading');
   let url;
   try { url = await fetchAudio(currentChapter, idx); }
@@ -1605,9 +1606,14 @@ async function loadEpubFromLibrary(file, bookMeta) {
   window._currentBookMeta = bookMeta;
   await loadEpub(file);
   // Restore progress
-  if (bookMeta.current_chapter > 0) {
-    loadChapter(bookMeta.current_chapter);
-    showToast(`Lanjut dari bab ${bookMeta.current_chapter + 1}`);
+  const resumeCh = bookMeta.current_chapter || 0;
+  const resumeSent = bookMeta.current_sentence || 0;
+  if (resumeCh > 0 || resumeSent > 0) {
+    loadChapter(resumeCh);
+    currentSentence = resumeSent;
+    renderTextPanel(resumeSent);
+    updateProgress();
+    showToast(`Lanjut dari bab ${resumeCh + 1}, kalimat ${resumeSent + 1}`);
   }
 }
 
@@ -1616,7 +1622,11 @@ async function saveProgress() {
   const meta = window._currentBookMeta;
   if (!meta || currentChapter < 0) return;
   const pct = Math.round((currentChapter / Math.max(chapters.length - 1, 1)) * 100);
-  await supa.from('books').update({ current_chapter: currentChapter, progress_pct: pct }).eq('id', meta.id);
+  await supa.from('books').update({
+    current_chapter: currentChapter,
+    current_sentence: currentSentence,
+    progress_pct: pct
+  }).eq('id', meta.id);
 }
 
 // Context menu

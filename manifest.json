@@ -6,8 +6,8 @@
   "scope": "/Audio-books/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f5f0e8",
-  "theme_color": "#f5f0e8",
+  "background_color": "#eaeae8",
+  "theme_color": "#eaeae8",
   "categories": ["books", "education"],
   "icons": [
     {

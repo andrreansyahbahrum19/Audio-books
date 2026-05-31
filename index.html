@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="icon" type="image/webp" href="logo_Audio_books.webp">
 <link rel="shortcut icon" href="icon-192.png">
-<meta name="theme-color" content="#f5f0e8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#eaeae8" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#18150f" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -36,27 +36,27 @@ button:focus, button:focus-visible, button:active,
 .field-input { -webkit-user-select: text; user-select: text; }
 
 :root {
-  /* E-paper light theme */
-  --bg: #f2ede3;
-  --bg-warm: #ece6d8;
-  --surface: #f7f3eb;
-  --surface2: #ece6d8;
-  --border: rgba(50,38,18,0.08);
-  --border-strong: rgba(50,38,18,0.14);
-  --ink: #18140c;
-  --ink-dim: #4a4030;
-  --ink-muted: #9a9080;
-  --accent: #6b4f28;
-  --accent-light: rgba(107,79,40,0.08);
-  --accent-mid: rgba(107,79,40,0.15);
+  /* E-paper light theme — Abu (neutral, referensi Apple Books) */
+  --bg: #eaeae8;
+  --bg-warm: #e0e0dd;
+  --surface: #f3f3f1;
+  --surface2: #e0e0dd;
+  --border: rgba(40,40,35,0.12);
+  --border-strong: rgba(40,40,35,0.24);
+  --ink: #1c1c1a;
+  --ink-dim: #454542;
+  --ink-muted: #8e8e8a;
+  --accent: #5a5a52;
+  --accent-light: rgba(90,90,82,0.09);
+  --accent-mid: rgba(90,90,82,0.16);
   --green: #3a7050;
   --red: #8a2c2c;
   --blue: #2a5280;
   --radius: 14px;
   --radius-sm: 8px;
-  --sheet-bg: #f7f3eb;
-  --shadow: 0 1px 16px rgba(40,28,8,0.07);
-  --shadow-heavy: 0 8px 48px rgba(40,28,8,0.15);
+  --sheet-bg: #f3f3f1;
+  --shadow: 0 1px 16px rgba(0,0,0,0.07);
+  --shadow-heavy: 0 8px 48px rgba(0,0,0,0.13);
 }
 
 /* Dark / night mode */
@@ -239,17 +239,40 @@ body.text-expanded .bottom-player { display: none !important; }
 
 .reading-text {
   font-family: 'Lora', serif;
-  font-size: 1.08rem;
-  line-height: 1.95;
+  font-size: var(--reader-fs, 1.08rem);
+  line-height: var(--reader-lh, 1.95);
   color: var(--ink-dim);
   max-width: 58ch;
   margin: 0 auto;
   word-spacing: 0.02em;
 }
+.reading-text.justify { text-align: justify; -webkit-hyphens: auto; hyphens: auto; }
+.reading-text.justify .reader-head { text-align: left; -webkit-hyphens: none; hyphens: none; }
 .reading-empty {
   text-align: center; color: var(--ink-muted); padding: 60px 0;
   font-family: 'Lora', serif; font-style: italic; font-size: 1rem;
 }
+/* ── BLOCK STRUCTURE: paragraf & headline (ebook feel) ── */
+.reader-para {
+  margin: 0 0 0.5em;
+  text-indent: 1.5em;           /* hybrid: first-line indent ala buku */
+}
+/* Paragraf pertama bab & paragraf tepat setelah heading: tanpa indent (konvensi tipografi) */
+.reading-text > .reader-para:first-child,
+.reader-head + .reader-para { text-indent: 0; }
+
+.reader-head {
+  font-family: 'Lora', serif;
+  font-size: 1.55rem;
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--ink);
+  text-indent: 0;
+  margin: 0.2em 0 1.1em;
+  letter-spacing: -0.01em;
+}
+.reading-text > .reader-head:not(:first-child) { margin-top: 1.6em; }
+
 .sentence-wrap { display: inline; transition: opacity 0.4s, color 0.3s; }
 .sentence-wrap.past { opacity: 0.28; }
 .sentence-wrap.active {
@@ -360,6 +383,24 @@ body.night .bottom-player { box-shadow: 0 -4px 32px rgba(0,0,0,0.3); }
 }
 .chip:hover { border-color: var(--accent); color: var(--ink); }
 .chip.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+
+/* ── TEXT SETTINGS BAR (collapsible) — ukuran teks, spasi, perataan ── */
+.text-bar {
+  overflow: hidden; max-height: 0; transition: max-height 0.35s ease, opacity 0.3s ease;
+  opacity: 0; background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.text-bar.open { max-height: 240px; opacity: 1; padding: 14px 20px 16px; }
+.fs-stepper { display: flex; align-items: center; gap: 8px; }
+.fs-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 30px; min-width: 44px; padding: 0 14px; border-radius: 20px;
+  border: 1px solid var(--border-strong); background: var(--surface2); color: var(--ink-dim);
+  font-family: 'Lora', serif; cursor: pointer; transition: all 0.18s; line-height: 1;
+}
+.fs-btn:hover { border-color: var(--accent); color: var(--accent); }
+.fs-btn:active { transform: scale(0.94); }
+.fs-btn.small { font-size: 0.8rem; }
+.fs-btn.large { font-size: 1.18rem; }
 .speed-row { display: flex; align-items: center; gap: 0; flex-wrap: wrap; row-gap: 10px; }
 .speed-group { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 input[type=range] {
@@ -486,7 +527,6 @@ input[type=range]::-webkit-slider-thumb {
 /* ── MOBILE ── */
 @media (max-width: 480px) {
   .reading-area { padding: 24px 18px 170px; }
-  .reading-text { font-size: 1rem; line-height: 1.95; }
   .top-bar { padding: 12px 16px; }
   .bottom-player { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
   .book-title-top { max-width: 110px; font-size: 0.82rem; }
@@ -733,6 +773,7 @@ input[type=range]::-webkit-slider-thumb {
       </div>
     </div>
     <div class="top-bar-right">
+      <button class="btn-icon" id="text-btn" onclick="toggleTextBar()" title="Pengaturan teks" style="font-family:'Lora',serif;font-weight:600;font-size:0.95rem;">Aa</button>
       <button class="btn-icon" id="night-btn" onclick="toggleNight()" title="Night mode">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
@@ -768,6 +809,32 @@ input[type=range]::-webkit-slider-thumb {
         <span class="voice-label">Nada</span>
         <input type="range" id="pitch-slider" min="-5" max="5" step="0.5" value="0" oninput="updatePitch(this.value)">
         <span class="range-val" id="pitch-val">0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEXT SETTINGS (collapsible) -->
+  <div class="text-bar" id="text-bar">
+    <div class="voice-row">
+      <span class="voice-label">Ukuran teks</span>
+      <div class="fs-stepper">
+        <button class="fs-btn small" onclick="changeFont(-1)" title="Perkecil">A</button>
+        <button class="fs-btn large" onclick="changeFont(1)" title="Perbesar">A</button>
+      </div>
+    </div>
+    <div class="voice-row">
+      <span class="voice-label">Spasi baris</span>
+      <div class="chip-group" id="lh-group">
+        <button class="chip" data-lh="1.6" onclick="setLineHeight(this)">Rapat</button>
+        <button class="chip active" data-lh="1.95" onclick="setLineHeight(this)">Normal</button>
+        <button class="chip" data-lh="2.3" onclick="setLineHeight(this)">Lega</button>
+      </div>
+    </div>
+    <div class="voice-row" style="margin-bottom:0;">
+      <span class="voice-label">Perataan</span>
+      <div class="chip-group" id="align-group">
+        <button class="chip active" data-justify="0" onclick="setAlign(this)">Rata kiri</button>
+        <button class="chip" data-justify="1" onclick="setAlign(this)">Rata penuh</button>
       </div>
     </div>
   </div>
@@ -886,7 +953,13 @@ let dlCancelled = false;
 let bookTitle = '';
 let wakeLock = null;
 let voiceBarOpen = false;
+let textBarOpen = false;
 let isNight = false;
+// Reader text style
+let readerFontPx = 18;
+let readerLineHeight = 1.95;
+let readerJustify = false;
+const FS_MIN = 14, FS_MAX = 30;
 
 // ── NIGHT MODE ──
 function toggleNight() {
@@ -904,6 +977,52 @@ function toggleExpand() {
 function toggleVoiceBar() {
   voiceBarOpen = !voiceBarOpen;
   document.getElementById('voice-bar').classList.toggle('open', voiceBarOpen);
+  if (voiceBarOpen && textBarOpen) { textBarOpen = false; document.getElementById('text-bar').classList.remove('open'); }
+}
+
+// ── TEXT BAR (ukuran teks, spasi baris, perataan) ──
+function toggleTextBar() {
+  textBarOpen = !textBarOpen;
+  document.getElementById('text-bar').classList.toggle('open', textBarOpen);
+  if (textBarOpen && voiceBarOpen) { voiceBarOpen = false; document.getElementById('voice-bar').classList.remove('open'); }
+}
+function applyReaderStyle() {
+  const root = document.documentElement.style;
+  root.setProperty('--reader-fs', readerFontPx + 'px');
+  root.setProperty('--reader-lh', String(readerLineHeight));
+  const panel = document.getElementById('reading-text');
+  if (panel) panel.classList.toggle('justify', readerJustify);
+}
+function changeFont(delta) {
+  readerFontPx = Math.min(FS_MAX, Math.max(FS_MIN, readerFontPx + delta));
+  applyReaderStyle(); saveReaderStyle();
+}
+function setLineHeight(el) {
+  readerLineHeight = parseFloat(el.dataset.lh);
+  document.querySelectorAll('#lh-group .chip').forEach(c => c.classList.toggle('active', c === el));
+  applyReaderStyle(); saveReaderStyle();
+}
+function setAlign(el) {
+  readerJustify = el.dataset.justify === '1';
+  document.querySelectorAll('#align-group .chip').forEach(c => c.classList.toggle('active', c === el));
+  applyReaderStyle(); saveReaderStyle();
+}
+function saveReaderStyle() {
+  localStorage.setItem('ab_reader_fs', readerFontPx);
+  localStorage.setItem('ab_reader_lh', readerLineHeight);
+  localStorage.setItem('ab_reader_justify', readerJustify ? '1' : '0');
+}
+function loadReaderStyle() {
+  const fs = parseInt(localStorage.getItem('ab_reader_fs'), 10);
+  const lh = parseFloat(localStorage.getItem('ab_reader_lh'));
+  const jt = localStorage.getItem('ab_reader_justify');
+  if (!isNaN(fs)) readerFontPx = Math.min(FS_MAX, Math.max(FS_MIN, fs));
+  if (!isNaN(lh)) readerLineHeight = lh;
+  if (jt !== null) readerJustify = jt === '1';
+  // Sync UI active states
+  document.querySelectorAll('#lh-group .chip').forEach(c => c.classList.toggle('active', parseFloat(c.dataset.lh) === readerLineHeight));
+  document.querySelectorAll('#align-group .chip').forEach(c => c.classList.toggle('active', (c.dataset.justify === '1') === readerJustify));
+  applyReaderStyle();
 }
 
 // ── SHEET ──
@@ -1133,13 +1252,10 @@ async function loadEpub(file) {
       const html = await zFile.async('text');
       const doc = new DOMParser().parseFromString(html, 'text/html');
       ['nav','script','style'].forEach(t => doc.querySelectorAll(t).forEach(el=>el.remove()));
-      let chTitle = doc.querySelector('h1,h2,h3')?.textContent?.trim() || `Bab ${chapters.length+1}`;
-      chTitle = chTitle.substring(0,80);
-      const rawText = (doc.body?.innerText || doc.body?.textContent || '').replace(/\s+/g,' ').trim();
-      if (rawText.length < 60) continue;
-      const sentences = splitSentences(rawText);
-      if (!sentences.length) continue;
-      chapters.push({ title: chTitle, sentences });
+      // Block-aware extraction: pertahankan struktur paragraf & heading
+      const { sentences, segMeta, title } = extractChapterStructure(doc.body, chapters.length + 1);
+      if (sentences.join('').length < 60) continue;
+      chapters.push({ title, sentences, segMeta });
     }
     if (!chapters.length) { setStatus('Tidak ada bab yang bisa dibaca.', 'err'); return; }
     document.getElementById('book-title-top').textContent = bookTitle;
@@ -1165,6 +1281,54 @@ function splitSentences(text) {
   }
   if (buf.trim()) result.push(buf.trim());
   return result.filter(s => s.length > 3);
+}
+
+// ── BLOCK-AWARE EXTRACTION ──
+// Pecah satu block teks (paragraf/heading) jadi segmen TTS, tanpa lewat batas paragraf.
+const BLOCK_SEL = 'h1,h2,h3,h4,h5,h6,p,blockquote,li';
+function blockToSegments(text, isHeading) {
+  if (isHeading) return [text];                       // heading = 1 segmen utuh
+  const raw = text.match(/[^.!?؟]+[.!?؟]+(\s|$)/g) || [text];
+  const out = []; let buf = '';
+  for (const s of raw) {
+    if ((buf + s).length > 400 && buf) { out.push(buf.trim()); buf = s; }
+    else buf += s;
+  }
+  if (buf.trim()) out.push(buf.trim());
+  return out.filter(s => s.length > 1);
+}
+
+// Ekstrak satu chapter jadi { sentences[], segMeta[], title } dgn struktur paragraf+heading utuh.
+// segMeta[i] = { type:'heading'|'para', paraStart:bool, paraEnd:bool } paralel dgn sentences[i].
+function extractChapterStructure(body, fallbackNum) {
+  const sentences = [], segMeta = [];
+  let title = '';
+  if (body) {
+    const all = [...body.querySelectorAll(BLOCK_SEL)];
+    // leaf block = block yg gak punya block lain di dalamnya (unit teks terkecil, urutan dokumen)
+    const leaves = all.filter(el => !el.querySelector(BLOCK_SEL));
+    for (const el of leaves) {
+      const isHeading = /^h[1-6]$/.test(el.tagName.toLowerCase());
+      const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!text) continue;
+      if (isHeading && !title) title = text.substring(0, 80);
+      const segs = blockToSegments(text, isHeading);
+      segs.forEach((seg, j) => {
+        sentences.push(seg);
+        segMeta.push({ type: isHeading ? 'heading' : 'para', paraStart: j === 0, paraEnd: j === segs.length - 1 });
+      });
+    }
+  }
+  // FALLBACK: EPUB tanpa block jelas → cara lama (flat), tiap segmen = paragraf sendiri
+  if (!sentences.length && body) {
+    const rawText = (body.innerText || body.textContent || '').replace(/\s+/g, ' ').trim();
+    splitSentences(rawText).forEach(seg => {
+      sentences.push(seg);
+      segMeta.push({ type: 'para', paraStart: true, paraEnd: true });
+    });
+  }
+  if (!title) title = `Bab ${fallbackNum}`;
+  return { sentences, segMeta, title };
 }
 
 // ── CHAPTER SHEET LIST ──
@@ -1221,7 +1385,7 @@ async function downloadChapter(chIdx, e) {
   if (navigator.serviceWorker && navigator.serviceWorker.controller) {
     navigator.serviceWorker.controller.postMessage({
       type: 'START_DOWNLOAD',
-      payload: { chapterIdx: chIdx, sentences: ch.sentences, apiKey, voice: selectedVoice, gender: selectedGender, speed: speechRate, pitch: pitchVal, bookTitle, chapterTitle: ch.title }
+      payload: { chapterIdx: chIdx, sentences: ch.sentences, segMeta: ch.segMeta, apiKey, voice: selectedVoice, gender: selectedGender, speed: speechRate, pitch: pitchVal, bookTitle, chapterTitle: ch.title }
     });
     showToast('Download dimulai — bisa pindah tab!');
   } else {
@@ -1230,7 +1394,7 @@ async function downloadChapter(chIdx, e) {
     for (let i = 0; i < total; i++) {
       document.getElementById('dl-progress-fill').style.width = Math.round((i/total)*100) + '%';
       document.getElementById('dl-info').textContent = `Segmen ${i+1} / ${total}`;
-      try { mp3Chunks.push(await fetchAudioRaw(ch.sentences[i])); }
+      try { mp3Chunks.push(await fetchAudioRaw(buildInputSSML(ch.sentences[i], ch.segMeta?.[i]))); }
       catch(err) { document.getElementById('dl-modal').classList.remove('show'); btn.className = 'ch-dl-btn'; btn.textContent = '⬇ MP3'; showToast('Gagal: ' + err.message); return; }
     }
     document.getElementById('dl-modal').classList.remove('show');
@@ -1259,10 +1423,26 @@ function cancelDownload() {
 }
 
 // ── TTS ──
-async function fetchAudioRaw(text) {
+// Builder SSML: intonasi sesuai posisi kalimat dalam struktur paragraf/heading
+function buildInputSSML(text, meta) {
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  if (meta.type === 'heading') {
+    // Judul bab: emphasis + jeda panjang setelah dibaca (terasa seperti judul diumumkan)
+    return { ssml: `<speak><emphasis level="moderate">${esc(text)}</emphasis><break time="900ms"/></speak>` };
+  }
+  if (meta.paraEnd) {
+    // Kalimat terakhir paragraf: jeda napas singkat — ada ruang antara paragraf
+    return { ssml: `<speak>${esc(text)}<break time="450ms"/></speak>` };
+  }
+  // Kalimat tengah paragraf: plain text (gak ada overhead SSML, hemat quota)
+  return { text };
+}
+async function fetchAudioRaw(textOrInput) {
+  // backward-compat: string → {text}, object → as-is ({text} atau {ssml})
+  const ttsInput = typeof textOrInput === 'string' ? { text: textOrInput } : textOrInput;
   const res = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ input: { text }, voice: { languageCode: 'id-ID', name: selectedVoice, ssmlGender: selectedGender }, audioConfig: { audioEncoding: 'MP3', speakingRate: speechRate, pitch: pitchVal, effectsProfileId: ['headphone-class-device'] } })
+    body: JSON.stringify({ input: ttsInput, voice: { languageCode: 'id-ID', name: selectedVoice, ssmlGender: selectedGender }, audioConfig: { audioEncoding: 'MP3', speakingRate: speechRate, pitch: pitchVal, effectsProfileId: ['headphone-class-device'] } })
   });
   if (!res.ok) {
     const err = await res.json().catch(()=>({error:{message:'TTS error'}}));
@@ -1277,7 +1457,7 @@ async function fetchAudioRaw(text) {
       // retry sekali dengan voice valid
       const res2 = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input: { text }, voice: { languageCode: 'id-ID', name: selectedVoice, ssmlGender: selectedGender }, audioConfig: { audioEncoding: 'MP3', speakingRate: speechRate, pitch: pitchVal, effectsProfileId: ['headphone-class-device'] } })
+        body: JSON.stringify({ input: ttsInput, voice: { languageCode: 'id-ID', name: selectedVoice, ssmlGender: selectedGender }, audioConfig: { audioEncoding: 'MP3', speakingRate: speechRate, pitch: pitchVal, effectsProfileId: ['headphone-class-device'] } })
       });
       if (!res2.ok) { const e2 = await res2.json().catch(()=>({error:{message:'TTS error'}})); throw new Error(e2.error?.message || 'TTS error'); }
       const d2 = await res2.json();
@@ -1295,8 +1475,19 @@ async function fetchAudioRaw(text) {
 async function fetchAudio(chIdx, sIdx) {
   const cacheKey = `${chIdx}-${sIdx}-${selectedVoice}-${speechRate}-${pitchVal}`;
   if (audioCache[cacheKey]) return audioCache[cacheKey];
-  const text = chapters[chIdx]?.sentences[sIdx]; if (!text) return null;
-  const raw = await fetchAudioRaw(text);
+  const ch = chapters[chIdx];
+  const text = ch?.sentences[sIdx]; if (!text) return null;
+  const meta = ch.segMeta?.[sIdx];
+  // Playback pakai SSML kalau ada metadata (intonasi paragraf + heading)
+  const ttsInput = meta ? buildInputSSML(text, meta) : { text };
+  let raw;
+  try {
+    raw = await fetchAudioRaw(ttsInput);
+  } catch(e) {
+    // Fallback: kalau SSML gagal (mis. voice gak support), coba plain text
+    if (ttsInput.ssml) { raw = await fetchAudioRaw({ text }); }
+    else throw e;
+  }
   const blob = new Blob([raw], { type: 'audio/mpeg' });
   const url = URL.createObjectURL(blob);
   audioCache[cacheKey] = url; return url;
@@ -1451,13 +1642,38 @@ function renderTextPanel(activeIdx = currentSentence) {
   if (currentChapter < 0 || !chapters[currentChapter]) {
     panel.innerHTML = '<div class="reading-empty">Pilih bab untuk mulai membaca &amp; mendengarkan</div>'; return;
   }
-  const sents = chapters[currentChapter].sentences;
-  panel.innerHTML = sents.map((s, i) => {
+  const ch = chapters[currentChapter];
+  const sents = ch.sentences;
+  const meta = ch.segMeta;
+  const spanFor = (s, i) => {
     let cls = 'sentence-wrap';
     if (i < activeIdx) cls += ' past';
     if (i === activeIdx) cls += ' active';
     return `<span class="${cls}" id="s-${i}">${escHtml(s)} </span>`;
-  }).join('');
+  };
+
+  // Fallback: metadata gak ada / gak sinkron → render flat (perilaku lama, tetap aman)
+  if (!meta || meta.length !== sents.length) {
+    panel.innerHTML = sents.map(spanFor).join('');
+  } else {
+    // Block-aware: group jadi <p class="reader-para"> & <h2 class="reader-head">
+    let html = '', openPara = false;
+    sents.forEach((s, i) => {
+      const m = meta[i];
+      if (m.type === 'heading') {
+        if (openPara) { html += '</p>'; openPara = false; }
+        html += `<h2 class="reader-head">${spanFor(s, i)}</h2>`;
+      } else {
+        if (openPara && m.paraStart) { html += '</p>'; openPara = false; }
+        if (!openPara) { html += '<p class="reader-para">'; openPara = true; }
+        html += spanFor(s, i);
+        if (m.paraEnd) { html += '</p>'; openPara = false; }
+      }
+    });
+    if (openPara) html += '</p>';
+    panel.innerHTML = html;
+  }
+
   if (activeIdx >= 0) {
     setTimeout(() => {
       const el = document.getElementById(`s-${activeIdx}`);
@@ -1536,6 +1752,7 @@ async function initApp() {
   // Load night mode pref
   if (localStorage.getItem('reader_night') === '1') { isNight = true; document.body.classList.add('night'); }
   loadSettings();
+  loadReaderStyle();
 
   // Check API key
   const savedKey = localStorage.getItem(LS_KEY);

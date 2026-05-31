@@ -15,6 +15,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+* { -webkit-tap-highlight-color: transparent; }
+button, input { -webkit-appearance: none; touch-action: manipulation; }
 
 :root {
   --bg:            #f2ede3;
@@ -681,7 +683,15 @@ let chapters = [];
 let currentChapter = -1;
 let currentSentence = 0;
 let isPlaying = false;
-let currentAudio = new Audio();
+
+// Pakai element audio yang beneran biar browser treat sebagai media player
+// — kunci agar tetap play saat layar mati di Android
+const currentAudio = document.createElement('audio');
+currentAudio.setAttribute('playsinline', '');
+currentAudio.setAttribute('x-webkit-airplay', 'allow');
+currentAudio.preload = 'auto';
+document.body.appendChild(currentAudio);
+
 const audioCache = {};
 const downloadedChapters = new Set();
 let dlCancelled = false;
@@ -736,23 +746,45 @@ async function releaseWakeLock() {
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible' && isPlaying) {
     await requestWakeLock();
-    if (currentAudio && currentAudio.paused && isPlaying) { try { await currentAudio.play(); } catch(e) {} }
+    if (currentAudio && currentAudio.paused) { 
+      try { await currentAudio.play(); } catch(e) {} 
+    }
+  }
+});
+
+// Handle audio interrupted by OS (phone call, notification, etc)
+currentAudio.addEventListener('pause', () => {
+  if (isPlaying && document.visibilityState !== 'visible') {
+    // OS interrupted — try resume after brief delay
+    setTimeout(async () => {
+      if (isPlaying && currentAudio.paused) {
+        try { await currentAudio.play(); } catch(e) {}
+      }
+    }, 500);
   }
 });
 
 // ── MEDIA SESSION ──
 function setupMediaSession() {
   if (!('mediaSession' in navigator)) return;
-  navigator.mediaSession.metadata = new MediaMetadata({ title: bookTitle || 'Audio Book', artist: 'Bahrum Creative Tools', album: chapters[currentChapter]?.title || '' });
+  navigator.mediaSession.metadata = new MediaMetadata({ 
+    title: bookTitle || 'Audio Book', 
+    artist: 'Bahrum Creative Tools', 
+    album: chapters[currentChapter]?.title || '' 
+  });
   navigator.mediaSession.setActionHandler('play', () => { if (!isPlaying) togglePlay(); });
   navigator.mediaSession.setActionHandler('pause', () => { if (isPlaying) togglePlay(); });
-  navigator.mediaSession.setActionHandler('previoustrack', prevChapter);
-  navigator.mediaSession.setActionHandler('nexttrack', nextChapter);
+  navigator.mediaSession.setActionHandler('previoustrack', () => rewindSentence());
+  navigator.mediaSession.setActionHandler('nexttrack', () => forwardSentence());
+  navigator.mediaSession.setActionHandler('seekbackward', () => rewindSentence());
+  navigator.mediaSession.setActionHandler('seekforward', () => forwardSentence());
 }
 function updateMediaSessionState(playing) {
   if (!('mediaSession' in navigator)) return;
   navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
-  if (navigator.mediaSession.metadata) { navigator.mediaSession.metadata.album = chapters[currentChapter]?.title || ''; }
+  if (navigator.mediaSession.metadata) { 
+    navigator.mediaSession.metadata.album = chapters[currentChapter]?.title || ''; 
+  }
 }
 
 // ── API ──
@@ -1075,17 +1107,21 @@ async function fetchAudio(chIdx, sIdx) {
 }
 
 // ── PLAYBACK ──
+let playbackSession = 0; // increment setiap kali stop/skip — cancel semua loop lama
+
 async function startPlaying() {
   if (currentChapter < 0) return;
-  isPlaying = true; setPlayState('play');
+  isPlaying = true;
+  const session = ++playbackSession;
+  setPlayState('play');
   setupMediaSession(); updateMediaSessionState(true); await requestWakeLock();
-  await playSentence(currentSentence);
+  await playSentence(currentSentence, session);
 }
-async function playSentence(idx) {
-  if (!isPlaying) return;
+async function playSentence(idx, session) {
+  if (!isPlaying || session !== playbackSession) return;
   const ch = chapters[currentChapter];
   if (!ch || idx >= ch.sentences.length) {
-    if (currentChapter < chapters.length-1) { loadChapter(currentChapter+1); currentSentence=0; await playSentence(0); }
+    if (currentChapter < chapters.length-1) { loadChapter(currentChapter+1); currentSentence=0; await playSentence(0, session); }
     else { isPlaying=false; setPlayState('idle'); setStatus('Selesai dibaca 🎉'); renderTextPanel(-1); updateMediaSessionState(false); releaseWakeLock(); }
     return;
   }
@@ -1093,17 +1129,20 @@ async function playSentence(idx) {
   setStatus('', 'fetching'); setPlayState('loading');
   let url;
   try { url = await fetchAudio(currentChapter, idx); }
-  catch(e) { isPlaying=false; setPlayState('idle'); setStatus(e.message,'err'); showToast(e.message); return; }
-  if (!isPlaying) return;
+  catch(e) { 
+    if (session !== playbackSession) return;
+    isPlaying=false; setPlayState('idle'); setStatus(e.message,'err'); showToast(e.message); return; 
+  }
+  if (!isPlaying || session !== playbackSession) return;
   setPlayState('play'); setStatus('', 'speaking'); updateMediaSessionState(true);
   prefetchNext(currentChapter, idx+1);
   currentAudio.onended = null;
   currentAudio.onerror = null;
   currentAudio.src = url;
   currentAudio.load();
-  currentAudio.play();
-  currentAudio.onended = () => { if (isPlaying) playSentence(idx+1); };
-  currentAudio.onerror = () => { if (isPlaying) { setStatus('Error audio','err'); isPlaying=false; setPlayState('idle'); } };
+  try { await currentAudio.play(); } catch(e) { return; }
+  currentAudio.onended = () => { if (isPlaying && session === playbackSession) playSentence(idx+1, session); };
+  currentAudio.onerror = () => { if (isPlaying && session === playbackSession) { setStatus('Error audio','err'); isPlaying=false; setPlayState('idle'); } };
 }
 function prefetchNext(chIdx, sIdx) {
   if (!isPlaying) return;
@@ -1114,21 +1153,42 @@ function prefetchNext(chIdx, sIdx) {
 function togglePlay() {
   if (currentChapter < 0) { showToast('Pilih bab dulu'); return; }
   if (isPlaying) {
-    isPlaying=false; currentAudio?.pause(); setPlayState('idle'); setStatus('Dijeda');
+    isPlaying=false; playbackSession++;
+    currentAudio.onended = null; currentAudio.onerror = null;
+    currentAudio.pause();
+    setPlayState('idle'); setStatus('Dijeda');
     updateMediaSessionState(false); releaseWakeLock();
   } else {
-    if (currentAudio.paused && currentAudio.src) { isPlaying=true; currentAudio.play(); setPlayState('play'); setStatus('','speaking'); updateMediaSessionState(true); requestWakeLock(); }
+    if (currentAudio.paused && currentAudio.src) {
+      isPlaying=true; 
+      const session = ++playbackSession;
+      currentAudio.play();
+      currentAudio.onended = () => { if (isPlaying && session === playbackSession) playSentence(currentSentence+1, session); };
+      setPlayState('play'); setStatus('','speaking'); updateMediaSessionState(true); requestWakeLock();
+    }
     else startPlaying();
   }
 }
 function stopAudio() {
   isPlaying=false;
+  playbackSession++; // invalidate semua loop yang lagi jalan
   currentAudio.onended = null; currentAudio.onerror = null;
-  currentAudio.pause(); currentAudio.src='';
+  currentAudio.pause();
+  currentAudio.src='';
   setPlayState('idle'); updateMediaSessionState(false); releaseWakeLock();
 }
-async function forwardSentence() { stopAudio(); currentSentence=Math.min(currentSentence+1,(chapters[currentChapter]?.sentences.length||1)-1); renderTextPanel(currentSentence); updateProgress(); await startPlaying(); }
-async function rewindSentence() { stopAudio(); currentSentence=Math.max(currentSentence-1,0); renderTextPanel(currentSentence); updateProgress(); await startPlaying(); }
+async function forwardSentence() { 
+  stopAudio(); 
+  currentSentence = Math.min(currentSentence+1, (chapters[currentChapter]?.sentences.length||1)-1); 
+  renderTextPanel(currentSentence); updateProgress(); 
+  await startPlaying(); 
+}
+async function rewindSentence() { 
+  stopAudio(); 
+  currentSentence = Math.max(currentSentence-1, 0); 
+  renderTextPanel(currentSentence); updateProgress(); 
+  await startPlaying(); 
+}
 function prevChapter() { stopAudio(); if(currentChapter>0){loadChapter(currentChapter-1);startPlaying();} }
 function nextChapter() { stopAudio(); if(currentChapter<chapters.length-1){loadChapter(currentChapter+1);startPlaying();} }
 

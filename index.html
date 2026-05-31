@@ -14,14 +14,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 html { -webkit-tap-highlight-color: rgba(0,0,0,0); }
-* { -webkit-tap-highlight-color: rgba(0,0,0,0); -webkit-tap-highlight-color: transparent; }
 button, input, .chip, .ch-item, .btn-icon, .btn-ctrl, .btn-play, .btn-chapters,
 .btn-primary, .btn-text, .btn-api-reset, .sheet-close, .upload-zone, .expand-btn,
-.ch-dl-btn, .btn-cancel, .field-toggle, .upload-label strong {
+.ch-dl-btn, .btn-cancel, .field-toggle, .book-card {
   -webkit-tap-highlight-color: transparent;
-  -webkit-appearance: none;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
@@ -29,51 +27,52 @@ button, input, .chip, .ch-item, .btn-icon, .btn-ctrl, .btn-play, .btn-chapters,
   outline: none;
 }
 button:focus, button:focus-visible, button:active,
-.chip:focus, .ch-item:focus, .upload-zone:focus, .expand-btn:focus {
-  outline: none;
-  -webkit-tap-highlight-color: transparent;
+.chip:focus, .ch-item:focus, .book-card:focus, .upload-zone:focus, .expand-btn:focus {
+  outline: none; -webkit-tap-highlight-color: transparent;
 }
 .field-input { -webkit-user-select: text; user-select: text; }
 
 :root {
-  --bg:            #f2ede3;
-  --bg-warm:       #ece6d8;
-  --surface:       #f7f3eb;
-  --surface2:      #ece6d8;
-  --border:        rgba(50,38,18,0.08);
+  /* E-paper light theme */
+  --bg: #f2ede3;
+  --bg-warm: #ece6d8;
+  --surface: #f7f3eb;
+  --surface2: #ece6d8;
+  --border: rgba(50,38,18,0.08);
   --border-strong: rgba(50,38,18,0.14);
-  --ink:           #18140c;
-  --ink-dim:       #4a4030;
-  --ink-muted:     #9a9080;
-  --accent:        #6b4f28;
-  --accent-light:  rgba(107,79,40,0.08);
-  --accent-mid:    rgba(107,79,40,0.15);
-  --green:         #3a7050;
-  --red:           #8a2c2c;
-  --blue:          #2a5280;
-  --radius:        14px;
-  --radius-sm:     8px;
-  --sheet-bg:      #f7f3eb;
-  --shadow:        0 1px 16px rgba(40,28,8,0.07);
-  --shadow-heavy:  0 8px 48px rgba(40,28,8,0.15);
+  --ink: #18140c;
+  --ink-dim: #4a4030;
+  --ink-muted: #9a9080;
+  --accent: #6b4f28;
+  --accent-light: rgba(107,79,40,0.08);
+  --accent-mid: rgba(107,79,40,0.15);
+  --green: #3a7050;
+  --red: #8a2c2c;
+  --blue: #2a5280;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --sheet-bg: #f7f3eb;
+  --shadow: 0 1px 16px rgba(40,28,8,0.07);
+  --shadow-heavy: 0 8px 48px rgba(40,28,8,0.15);
 }
 
+/* Dark / night mode */
 body.night {
-  --bg:            #16130e;
-  --bg-warm:       #1c1810;
-  --surface:       #1f1c13;
-  --surface2:      #272318;
-  --border:        rgba(190,160,90,0.07);
+  --bg: #16130e;
+  --bg-warm: #1c1810;
+  --surface: #1f1c13;
+  --surface2: #272318;
+  --border: rgba(190,160,90,0.07);
   --border-strong: rgba(190,160,90,0.13);
-  --ink:           #e4dcc8;
-  --ink-dim:       #9a8e78;
-  --ink-muted:     #524a3c;
-  --accent:        #c09848;
-  --accent-light:  rgba(192,152,72,0.09);
-  --accent-mid:    rgba(192,152,72,0.18);
-  --sheet-bg:      #1f1c13;
-  --shadow:        0 1px 16px rgba(0,0,0,0.28);
-  --shadow-heavy:  0 8px 48px rgba(0,0,0,0.5);
+  --ink: #e4dcc8;
+  --ink-dim: #9a8e78;
+  --ink-muted: #524a3c;
+  --accent: #c09848;
+  --accent-light: rgba(192,152,72,0.09);
+  --accent-mid: rgba(192,152,72,0.18);
+  --sheet-bg: #1f1c13;
+  --shadow: 0 1px 16px rgba(0,0,0,0.28);
+  --shadow-heavy: 0 8px 48px rgba(0,0,0,0.5);
 }
 
 html { height: 100%; }
@@ -82,9 +81,10 @@ body {
   background: var(--bg);
   color: var(--ink);
   min-height: 100%;
-  transition: background 0.5s ease, color 0.4s ease;
+  transition: background 0.4s ease, color 0.4s ease;
 }
 
+/* ── SETUP SCREEN ── */
 #setup-screen {
   min-height: 100vh;
   display: flex;
@@ -92,143 +92,146 @@ body {
   align-items: center;
   justify-content: center;
   padding: 40px 20px;
-  gap: 24px;
+  gap: 20px;
 }
 .setup-logo {
   font-family: 'Lora', serif;
   font-size: 2rem;
-  font-weight: 400;
-  letter-spacing: -0.01em;
+  font-weight: 500;
+  letter-spacing: -0.02em;
   color: var(--ink);
   text-align: center;
   line-height: 1.2;
 }
-.setup-logo em { color: var(--accent); font-style: italic; font-weight: 500; }
+.setup-logo em { color: var(--accent); font-style: italic; }
 .setup-sub {
-  font-size: 0.62rem;
+  font-size: 0.7rem;
   color: var(--ink-muted);
-  letter-spacing: 0.22em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   text-align: center;
-  margin-top: -10px;
 }
 .setup-card {
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  padding: 24px 22px;
+  padding: 28px 24px;
   box-shadow: var(--shadow);
 }
 .setup-card-title {
-  font-size: 0.6rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.14em;
   color: var(--ink-muted);
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
-.field-row { display: flex; gap: 8px; }
+.field-row { display: flex; gap: 10px; }
 .field-wrap { flex: 1; position: relative; }
 .field-input {
   width: 100%;
-  background: var(--bg);
+  background: var(--bg-warm);
   border: 1px solid var(--border-strong);
   color: var(--ink);
   font-family: 'DM Sans', sans-serif;
-  font-size: 0.88rem;
-  padding: 11px 38px 11px 13px;
+  font-size: 0.9rem;
+  padding: 12px 40px 12px 14px;
   border-radius: var(--radius-sm);
   outline: none;
   transition: border-color 0.2s;
 }
 .field-input:focus { border-color: var(--accent); }
 .field-toggle {
-  position: absolute; right: 11px; top: 50%; transform: translateY(-50%);
-  background: none; border: none; color: var(--ink-muted); cursor: pointer; font-size: 0.85rem;
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: var(--ink-muted); cursor: pointer; font-size: 0.9rem;
 }
 .btn-primary {
   background: var(--accent); border: none; color: #fff;
-  font-family: 'DM Sans', sans-serif; font-weight: 500; font-size: 0.85rem;
-  padding: 11px 20px; border-radius: var(--radius-sm); cursor: pointer;
+  font-family: 'DM Sans', sans-serif; font-weight: 500; font-size: 0.9rem;
+  padding: 12px 22px; border-radius: var(--radius-sm); cursor: pointer;
   transition: all 0.2s; white-space: nowrap;
 }
-.btn-primary:hover { opacity: 0.85; }
-.btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
-.field-hint { margin-top: 10px; font-size: 0.7rem; color: var(--ink-muted); line-height: 1.55; }
+.btn-primary:hover { opacity: 0.88; }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.field-hint { margin-top: 10px; font-size: 0.72rem; color: var(--ink-muted); line-height: 1.5; }
 .field-hint a { color: var(--accent); text-decoration: none; }
-.field-status { margin-top: 8px; font-size: 0.75rem; min-height: 18px; }
+.field-status { margin-top: 8px; font-size: 0.78rem; min-height: 18px; }
 .field-status.ok { color: var(--green); }
 .field-status.err { color: var(--red); }
 .field-status.loading { color: var(--ink-muted); }
-.btn-text { background: none; border: none; color: var(--ink-muted); font-family: 'DM Sans', sans-serif; font-size: 0.7rem; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; margin-top: 8px; display: inline-block; }
+.btn-text { background: none; border: none; color: var(--ink-muted); font-family: 'DM Sans', sans-serif; font-size: 0.72rem; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; margin-top: 8px; display: inline-block; }
 .btn-text:hover { color: var(--red); }
 .setup-card.connected { display: none; }
 .api-connected-badge {
   display: none; align-items: center; gap: 10px;
   background: var(--surface); border: 1px solid var(--border-strong);
-  border-radius: var(--radius); padding: 14px 18px;
-  width: 100%; max-width: 400px;
+  border-radius: var(--radius); padding: 16px 20px;
+  width: 100%; max-width: 420px;
   box-shadow: var(--shadow);
 }
 .api-connected-badge.show { display: flex; }
-.api-badge-icon { font-size: 1.2rem; }
+.api-badge-icon { font-size: 1.4rem; }
 .api-badge-info { flex: 1; }
-.api-badge-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.16em; color: var(--ink-muted); margin-bottom: 2px; }
-.api-badge-status { font-size: 0.84rem; color: var(--green); font-weight: 500; }
-.btn-api-reset { background: none; border: none; font-size: 0.68rem; color: var(--ink-muted); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.api-badge-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-muted); margin-bottom: 2px; }
+.api-badge-status { font-size: 0.88rem; color: var(--green); font-weight: 500; }
+.btn-api-reset { background: none; border: none; font-size: 0.7rem; color: var(--ink-muted); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .btn-api-reset:hover { color: var(--red); }
 
+/* Upload zone */
 .upload-zone {
-  width: 100%; max-width: 400px;
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius); padding: 44px 28px; text-align: center;
+  width: 100%; max-width: 420px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius); padding: 48px 32px; text-align: center;
   cursor: pointer; transition: all 0.25s;
   background: var(--surface);
 }
 .upload-zone:hover, .upload-zone.drag-over { border-color: var(--accent); background: var(--accent-light); }
 .upload-zone input { display: none; }
-.upload-icon { font-size: 2rem; margin-bottom: 14px; opacity: 0.6; }
-.upload-label { font-size: 0.9rem; color: var(--ink-dim); line-height: 1.65; }
-.upload-label strong { color: var(--accent); cursor: pointer; font-weight: 500; }
-.upload-hint { margin-top: 8px; font-size: 0.68rem; color: var(--ink-muted); letter-spacing: 0.04em; }
+.upload-icon { font-size: 2.4rem; margin-bottom: 14px; }
+.upload-label { font-size: 0.95rem; color: var(--ink-dim); line-height: 1.6; }
+.upload-label strong { color: var(--accent); cursor: pointer; }
+.upload-hint { margin-top: 8px; font-size: 0.72rem; color: var(--ink-muted); }
 
+/* ── READER SCREEN ── */
 #reader-screen { display: none; height: 100vh; flex-direction: column; overflow: hidden; }
 
+/* Top bar */
 .top-bar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 18px 10px;
+  padding: 14px 20px 12px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   flex-shrink: 0;
   position: relative;
   z-index: 10;
 }
-.top-bar-left { display: flex; align-items: center; gap: 12px; }
+.top-bar-left { display: flex; align-items: center; gap: 14px; }
 .btn-icon {
-  background: none; border: none; color: var(--ink-muted); cursor: pointer;
-  width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: none; border: none; color: var(--ink-dim); cursor: pointer;
+  width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
   transition: all 0.2s;
 }
-.btn-icon:hover { background: var(--surface2); color: var(--ink-dim); }
-.btn-icon svg { width: 16px; height: 16px; }
+.btn-icon:hover { background: var(--surface2); color: var(--ink); }
+.btn-icon svg { width: 18px; height: 18px; }
 .book-title-top {
-  font-family: 'Lora', serif; font-size: 0.85rem; font-weight: 500; font-style: italic;
-  color: var(--ink-dim); max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-family: 'Lora', serif; font-size: 0.9rem; font-weight: 500;
+  color: var(--ink); max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .chapter-tag {
-  font-size: 0.58rem; color: var(--ink-muted); text-transform: uppercase;
-  letter-spacing: 0.14em; margin-top: 1px;
+  font-size: 0.65rem; color: var(--ink-muted); text-transform: uppercase;
+  letter-spacing: 0.1em; margin-top: 1px;
 }
-.top-bar-right { display: flex; align-items: center; gap: 4px; }
+.top-bar-right { display: flex; align-items: center; gap: 6px; }
 
+/* ── TEXT AREA — main scrollable reading area ── */
 .reading-area {
-  flex: 1; overflow-y: auto;
-  padding: 48px 24px 180px;
+  flex: 1; overflow-y: auto; padding: 32px 24px 160px;
   scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent;
   -webkit-overflow-scrolling: touch;
 }
-body.text-expanded .reading-area { padding-bottom: 40px; }
+/* expand-to-fullscreen: hide bottom bar */
+body.text-expanded .reading-area { padding-bottom: 32px; }
 body.text-expanded .bottom-player { display: none !important; }
 
 .reading-text {
@@ -241,23 +244,9 @@ body.text-expanded .bottom-player { display: none !important; }
   word-spacing: 0.02em;
 }
 .reading-empty {
-  text-align: center; color: var(--ink-muted); padding: 80px 0;
-  font-family: 'Lora', serif; font-style: italic; font-size: 0.95rem; opacity: 0.7;
+  text-align: center; color: var(--ink-muted); padding: 60px 0;
+  font-family: 'Lora', serif; font-style: italic; font-size: 1rem;
 }
-
-.chapter-heading {
-  font-family: 'Lora', serif;
-  font-size: 0.68rem;
-  font-weight: 400;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--ink-muted);
-  text-align: center;
-  margin-bottom: 40px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--border);
-}
-
 .sentence-wrap { display: inline; transition: opacity 0.4s, color 0.3s; }
 .sentence-wrap.past { opacity: 0.28; }
 .sentence-wrap.active {
@@ -269,229 +258,412 @@ body.text-expanded .bottom-player { display: none !important; }
   opacity: 1;
 }
 
+/* Expand button — fixed top-right of reading area */
 .expand-btn {
-  position: fixed; top: 64px; right: 14px;
-  width: 30px; height: 30px; border-radius: 50%;
+  position: fixed; top: 70px; right: 14px;
+  width: 34px; height: 34px; border-radius: 50%;
   background: var(--surface); border: 1px solid var(--border-strong);
   box-shadow: var(--shadow); color: var(--ink-muted);
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; z-index: 20; transition: all 0.2s; opacity: 0.6;
+  cursor: pointer; z-index: 20; transition: all 0.2s;
 }
-.expand-btn:hover { opacity: 1; color: var(--accent); border-color: var(--accent); }
-.expand-btn svg { width: 11px; height: 11px; }
+.expand-btn:hover { color: var(--accent); border-color: var(--accent); }
+.expand-btn svg { width: 13px; height: 13px; }
 .expand-btn svg.icon-collapse { display: none; }
 body.text-expanded .expand-btn { top: 14px; right: 14px; }
 body.text-expanded .expand-btn svg.icon-expand { display: none; }
 body.text-expanded .expand-btn svg.icon-collapse { display: block !important; }
 
+/* ── BOTTOM PLAYER ── */
 .bottom-player {
   position: fixed; bottom: 0; left: 0; right: 0;
   background: var(--surface);
-  border-top: 1px solid var(--border);
-  padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border-strong);
+  padding: 14px 20px calc(14px + env(safe-area-inset-bottom));
   z-index: 30;
+  box-shadow: 0 -4px 32px rgba(60,40,10,0.1);
 }
-body.night .bottom-player { box-shadow: 0 -2px 20px rgba(0,0,0,0.2); }
+body.night .bottom-player { box-shadow: 0 -4px 32px rgba(0,0,0,0.3); }
 
+/* Progress */
 .progress-track {
-  height: 1px; background: var(--border-strong); border-radius: 1px; margin-bottom: 14px; overflow: hidden;
+  height: 2px; background: var(--border-strong); border-radius: 2px; margin-bottom: 14px; overflow: hidden;
 }
 .progress-fill {
-  height: 100%; background: var(--accent); border-radius: 1px;
+  height: 100%; background: var(--accent); border-radius: 2px;
   transition: width 0.4s ease; width: 0%;
 }
 
+/* Controls row — true center layout */
 .controls-row {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 8px;
 }
-.controls-center { display: flex; align-items: center; gap: 4px; justify-content: center; }
+.controls-center { display: flex; align-items: center; gap: 2px; justify-content: center; }
 .controls-right { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
 .controls-left { display: flex; align-items: center; gap: 6px; justify-content: flex-start; }
 
 .btn-ctrl {
   background: none; border: none; cursor: pointer; color: var(--ink-muted);
-  width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
   border-radius: 50%; transition: all 0.2s;
 }
-.btn-ctrl:hover { color: var(--ink-dim); }
-.btn-ctrl svg { width: 16px; height: 16px; }
+.btn-ctrl:hover { color: var(--ink); background: var(--surface2); }
+.btn-ctrl svg { width: 18px; height: 18px; }
 
 .btn-play {
-  width: 46px; height: 46px; border-radius: 50%;
-  border: 1.5px solid var(--accent);
-  background: transparent; cursor: pointer;
+  width: 52px; height: 52px; border-radius: 50%; border: none;
+  background: var(--accent); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  transition: all 0.2s; margin: 0 4px;
+  transition: all 0.2s; margin: 0 6px;
 }
-.btn-play:hover { background: var(--accent-light); }
-.btn-play:active { transform: scale(0.94); }
-.btn-play.loading-state { border-color: var(--border-strong); cursor: wait; }
-.btn-play svg { width: 16px; height: 16px; fill: var(--accent); margin-left: 2px; }
+.btn-play:hover { transform: scale(1.06); }
+.btn-play:active { transform: scale(0.95); }
+.btn-play.loading-state { background: var(--surface2); cursor: wait; }
+.btn-play svg { width: 20px; height: 20px; fill: #fff; margin-left: 2px; }
 .btn-play.loading-state svg { display: none; }
-.btn-play.playing { background: var(--accent); border-color: var(--accent); }
-.btn-play.playing svg { fill: #fff; margin-left: 0; }
-
 @keyframes spin { to { transform: rotate(360deg); } }
-.spinner { width: 16px; height: 16px; border: 1.5px solid var(--border-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
+.spinner { width: 20px; height: 20px; border: 2px solid var(--border-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
 .btn-play.loading-state .spinner { display: block; }
 
-.progress-label { font-size: 0.65rem; color: var(--ink-muted); letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
+/* Progress label */
+.progress-label { font-size: 0.7rem; color: var(--ink-muted); letter-spacing: 0.04em; }
 
+/* Chapters button — opens bottom sheet */
 .btn-chapters {
-  display: flex; align-items: center; gap: 5px;
-  background: none; border: 1px solid var(--border-strong); border-radius: 20px;
-  padding: 5px 11px 5px 9px; font-family: 'DM Sans', sans-serif; font-size: 0.68rem;
-  color: var(--ink-muted); cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 20px;
+  padding: 6px 12px 6px 10px; font-family: 'DM Sans', sans-serif; font-size: 0.72rem;
+  color: var(--ink-dim); cursor: pointer; transition: all 0.2s;
 }
 .btn-chapters:hover { border-color: var(--accent); color: var(--accent); }
-.btn-chapters svg { width: 12px; height: 12px; }
+.btn-chapters svg { width: 14px; height: 14px; }
 
+/* ── VOICE SETTINGS BAR (collapsible) ── */
 .voice-bar {
   overflow: hidden; max-height: 0; transition: max-height 0.35s ease, opacity 0.3s ease;
   opacity: 0; background: var(--surface); border-bottom: 1px solid var(--border);
 }
-.voice-bar.open { max-height: 160px; opacity: 1; padding: 14px 18px 16px; }
+.voice-bar.open { max-height: 150px; opacity: 1; padding: 14px 20px 16px; }
 .voice-row { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 12px; }
-.voice-label { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.16em; color: var(--ink-muted); }
-.chip-group { display: flex; gap: 5px; flex-wrap: wrap; }
+.voice-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-muted); }
+.chip-group { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip {
-  background: transparent; border: 1px solid var(--border-strong); color: var(--ink-muted);
-  font-family: 'DM Sans', sans-serif; font-size: 0.68rem; padding: 4px 11px;
+  background: var(--surface2); border: 1px solid var(--border-strong); color: var(--ink-dim);
+  font-family: 'DM Sans', sans-serif; font-size: 0.72rem; padding: 5px 12px;
   border-radius: 20px; cursor: pointer; transition: all 0.18s;
 }
-.chip:hover { border-color: var(--accent); color: var(--ink-dim); }
-.chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.chip:hover { border-color: var(--accent); color: var(--ink); }
+.chip.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
 .speed-row { display: flex; align-items: center; gap: 0; flex-wrap: wrap; row-gap: 10px; }
 .speed-group { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 input[type=range] {
-  flex: 1; min-width: 0; height: 1px; -webkit-appearance: none; background: var(--border-strong);
-  border-radius: 1px; outline: none; cursor: pointer;
+  flex: 1; min-width: 0; height: 2px; -webkit-appearance: none; background: var(--border-strong);
+  border-radius: 2px; outline: none; cursor: pointer;
 }
 input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%;
-  background: var(--accent); cursor: pointer; border: 2px solid var(--surface);
-  box-shadow: 0 0 0 1px var(--accent);
+  -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent); cursor: pointer;
 }
-.range-val { font-size: 0.68rem; color: var(--ink-muted); min-width: 28px; text-align: right; flex-shrink: 0; }
+.range-val { font-size: 0.72rem; color: var(--ink-dim); min-width: 28px; text-align: right; flex-shrink: 0; }
 
+/* ── BOTTOM SHEET (Chapter list) ── */
 .sheet-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.25);
+  position: fixed; inset: 0; background: rgba(0,0,0,0.35);
   z-index: 50; opacity: 0; pointer-events: none; transition: opacity 0.3s;
 }
 .sheet-overlay.open { opacity: 1; pointer-events: all; }
+
 .bottom-sheet {
   position: fixed; bottom: 0; left: 0; right: 0;
-  background: var(--sheet-bg); border-radius: 18px 18px 0 0;
+  background: var(--sheet-bg); border-radius: 20px 20px 0 0;
   z-index: 51; padding: 0;
   transform: translateY(100%);
   transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
-  max-height: 72vh; display: flex; flex-direction: column;
+  max-height: 75vh; display: flex; flex-direction: column;
   box-shadow: var(--shadow-heavy);
-  border-top: 1px solid var(--border-strong);
 }
 .bottom-sheet.open { transform: translateY(0); }
+
 .sheet-handle {
-  width: 32px; height: 3px; background: var(--border-strong); border-radius: 2px;
-  margin: 12px auto 0;
+  width: 40px; height: 4px; background: var(--border-strong); border-radius: 2px;
+  margin: 14px auto 0;
 }
 .sheet-title {
-  font-family: 'Lora', serif; font-size: 0.95rem; font-weight: 500; font-style: italic;
-  padding: 14px 18px 10px; border-bottom: 1px solid var(--border);
+  font-family: 'Lora', serif; font-size: 1rem; font-weight: 500;
+  padding: 16px 20px 12px; border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
-  color: var(--ink-dim);
 }
 .sheet-close {
   background: none; border: none; cursor: pointer; color: var(--ink-muted);
-  width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
   transition: all 0.2s;
 }
-.sheet-close:hover { background: var(--surface2); }
-.sheet-close svg { width: 14px; height: 14px; }
+.sheet-close:hover { background: var(--surface2); color: var(--ink); }
+.sheet-close svg { width: 16px; height: 16px; }
 .sheet-list { overflow-y: auto; flex: 1; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+
 .ch-item {
-  display: flex; align-items: center; gap: 12px; padding: 12px 18px;
+  display: flex; align-items: center; gap: 14px; padding: 14px 20px;
   border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s;
 }
 .ch-item:hover { background: var(--surface2); }
 .ch-item.active { background: var(--accent-light); }
 .ch-num-badge {
-  width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border-strong);
+  width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border-strong);
   display: flex; align-items: center; justify-content: center;
-  font-size: 0.62rem; color: var(--ink-muted); flex-shrink: 0;
+  font-size: 0.7rem; color: var(--ink-muted); flex-shrink: 0; font-family: monospace;
 }
 .ch-item.active .ch-num-badge { border-color: var(--accent); color: var(--accent); background: var(--accent-mid); }
 .ch-item-info { flex: 1; min-width: 0; }
-.ch-item-title { font-size: 0.84rem; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'Lora', serif; font-style: italic; }
-.ch-item.active .ch-item-title { color: var(--accent); }
-.ch-item-count { font-size: 0.62rem; color: var(--ink-muted); margin-top: 2px; letter-spacing: 0.04em; }
+.ch-item-title { font-size: 0.88rem; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ch-item.active .ch-item-title { color: var(--accent); font-weight: 500; }
+.ch-item-count { font-size: 0.68rem; color: var(--ink-muted); margin-top: 2px; }
 .ch-dl-btn {
   background: none; border: 1px solid var(--border-strong); color: var(--ink-muted);
-  font-size: 0.62rem; padding: 4px 8px; border-radius: 5px; cursor: pointer;
+  font-size: 0.65rem; padding: 4px 9px; border-radius: 6px; cursor: pointer;
   transition: all 0.2s; white-space: nowrap; font-family: 'DM Sans', sans-serif; flex-shrink: 0;
 }
 .ch-dl-btn:hover { border-color: var(--green); color: var(--green); }
-.ch-dl-btn.done { border-color: var(--green); color: var(--green); background: rgba(58,112,80,0.07); }
+.ch-dl-btn.done { border-color: var(--green); color: var(--green); background: rgba(61,122,82,0.08); }
 .ch-dl-btn.loading { border-color: var(--accent); color: var(--accent); cursor: wait; }
 
+/* ── DOWNLOAD MODAL ── */
 .dl-modal {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200;
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200;
   display: none; align-items: center; justify-content: center;
 }
 .dl-modal.show { display: flex; }
 .dl-box {
   background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius);
-  padding: 28px 24px; width: 90%; max-width: 360px; text-align: center; box-shadow: var(--shadow-heavy);
+  padding: 32px 28px; width: 90%; max-width: 380px; text-align: center; box-shadow: var(--shadow-heavy);
 }
-.dl-box-title { font-family: 'Lora', serif; font-size: 1rem; font-style: italic; margin-bottom: 5px; color: var(--ink-dim); }
-.dl-box-sub { font-size: 0.74rem; color: var(--ink-muted); margin-bottom: 20px; }
-.dl-track { height: 1px; background: var(--border-strong); border-radius: 1px; overflow: hidden; margin-bottom: 10px; }
-.dl-fill { height: 100%; background: var(--accent); border-radius: 1px; transition: width 0.3s; width: 0%; }
-.dl-info { font-size: 0.72rem; color: var(--ink-dim); margin-bottom: 18px; }
-.btn-cancel { background: none; border: 1px solid var(--border-strong); color: var(--ink-muted); font-family: 'DM Sans', sans-serif; font-size: 0.75rem; padding: 7px 18px; border-radius: 6px; cursor: pointer; }
+.dl-box-title { font-family: 'Lora', serif; font-size: 1.05rem; margin-bottom: 6px; }
+.dl-box-sub { font-size: 0.78rem; color: var(--ink-muted); margin-bottom: 22px; }
+.dl-track { height: 3px; background: var(--border-strong); border-radius: 2px; overflow: hidden; margin-bottom: 12px; }
+.dl-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; width: 0%; }
+.dl-info { font-size: 0.75rem; color: var(--ink-dim); margin-bottom: 20px; }
+.btn-cancel { background: none; border: 1px solid var(--border-strong); color: var(--ink-muted); font-family: 'DM Sans', sans-serif; font-size: 0.78rem; padding: 8px 20px; border-radius: 6px; cursor: pointer; }
 .btn-cancel:hover { border-color: var(--red); color: var(--red); }
 
+/* ── STATUS BAR ── */
 .status-line {
-  font-size: 0.52rem; color: var(--ink-muted); text-align: center;
-  padding: 6px 0 0; min-height: 16px; letter-spacing: 0.08em; text-transform: uppercase;
+  font-size: 0.55rem; color: var(--ink-muted); text-align: center;
+  padding: 4px 0 0; min-height: 16px; letter-spacing: 0.02em;
 }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.2} }
-.dot { display: inline-block; width: 4px; height: 4px; border-radius: 50%; margin-right: 5px; animation: pulse 1.4s ease-in-out infinite; vertical-align: middle; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
+.dot { display: inline-block; width: 5px; height: 5px; border-radius: 50%; margin-right: 5px; animation: pulse 1.1s ease-in-out infinite; vertical-align: middle; }
 .dot.speaking { background: var(--accent); }
 .dot.fetching { background: var(--blue); }
 
+/* ── TOAST ── */
 .toast {
   position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(80px);
-  background: var(--ink); color: var(--bg); padding: 9px 18px;
-  border-radius: 6px; font-size: 0.76rem; transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  background: var(--ink); color: var(--bg); padding: 10px 20px;
+  border-radius: 8px; font-size: 0.8rem; transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
   z-index: 999; pointer-events: none; white-space: nowrap;
 }
 .toast.show { transform: translateX(-50%) translateY(0); }
 
-::-webkit-scrollbar { width: 2px; }
+/* Scrollbar */
+::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 1px; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
 
+/* ── DESKTOP — ensure proper centering & layout ── */
 @media (min-width: 481px) {
-  .reading-area { padding: 56px 64px 180px; }
-  .reading-text { max-width: 60ch; font-size: 1.1rem; line-height: 2; }
-  .controls-row { max-width: 560px; margin: 0 auto; }
+  .bottom-player { max-width: 100%; }
+  .controls-row { max-width: 600px; margin: 0 auto; }
+  .reading-area { padding: 40px 48px 160px; }
+  .reading-text { max-width: 680px; }
 }
 
+/* ── MOBILE ── */
 @media (max-width: 480px) {
-  .reading-area { padding: 28px 20px 180px; }
-  .reading-text { font-size: 1rem; line-height: 1.9; }
-  .top-bar { padding: 10px 14px; }
+  .reading-area { padding: 24px 18px 170px; }
+  .reading-text { font-size: 1rem; line-height: 1.95; }
+  .top-bar { padding: 12px 16px; }
   .bottom-player { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
-  .book-title-top { max-width: 110px; font-size: 0.8rem; }
-  .btn-chapters { font-size: 0.64rem; padding: 4px 9px 4px 7px; }
-  .progress-label { font-size: 0.62rem; }
+  .book-title-top { max-width: 110px; font-size: 0.82rem; }
+  .btn-chapters { font-size: 0.68rem; padding: 5px 10px 5px 8px; }
+  .progress-label { font-size: 0.65rem; }
 }
+
+/* ── LIBRARY SCREEN ── */
+#library-screen { display: none; min-height: 100vh; flex-direction: column; }
+.lib-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 20px 0; max-width: 680px; margin: 0 auto; width: 100%;
+}
+.lib-logo { display: flex; align-items: center; gap: 10px; }
+.lib-logo img { width: 36px; height: auto; }
+.lib-logo-text { font-family: 'Lora', serif; font-size: 1.1rem; font-weight: 500; }
+.lib-logo-text em { color: var(--accent); font-style: italic; }
+.lib-actions { display: flex; gap: 8px; align-items: center; }
+
+.lib-body { flex: 1; padding: 20px; max-width: 680px; margin: 0 auto; width: 100%; }
+.lib-section-title {
+  font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.14em;
+  color: var(--ink-muted); margin-bottom: 14px;
+}
+
+/* Book grid */
+.book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; margin-bottom: 28px; }
+@media (max-width: 480px) { .book-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; } }
+
+.book-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); overflow: hidden; cursor: pointer;
+  transition: all 0.2s; display: flex; flex-direction: column;
+}
+.book-card:hover { border-color: var(--accent); box-shadow: var(--shadow); transform: translateY(-2px); }
+.book-cover {
+  aspect-ratio: 2/3; background: var(--surface2);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; position: relative;
+}
+.book-cover img { width: 100%; height: 100%; object-fit: cover; }
+.book-cover-placeholder {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 16px; text-align: center; height: 100%;
+}
+.book-cover-placeholder .book-icon { font-size: 2rem; opacity: 0.4; }
+.book-cover-placeholder .book-initials {
+  font-family: 'Lora', serif; font-size: 0.75rem; color: var(--ink-muted);
+  line-height: 1.3; max-height: 3.9em; overflow: hidden;
+}
+.book-progress-bar { height: 3px; background: var(--border-strong); }
+.book-progress-fill { height: 100%; background: var(--accent); transition: width 0.3s; }
+.book-info { padding: 10px 10px 12px; flex: 1; }
+.book-title { font-size: 0.78rem; font-weight: 500; color: var(--ink-dim); line-height: 1.4; margin-bottom: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.book-meta { font-size: 0.62rem; color: var(--ink-muted); }
+.book-card-menu {
+  position: absolute; top: 6px; right: 6px;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: rgba(250,247,242,0.9); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.2s; color: var(--ink-dim);
+}
+.book-cover:hover .book-card-menu { opacity: 1; }
+.book-card-menu svg { width: 13px; height: 13px; }
+
+/* Upload button in library */
+.btn-upload-lib {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--accent); border: none; color: #fff;
+  font-family: 'DM Sans', sans-serif; font-weight: 500; font-size: 0.82rem;
+  padding: 10px 16px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s;
+}
+.btn-upload-lib:hover { opacity: 0.88; }
+.btn-upload-lib svg { width: 16px; height: 16px; }
+
+/* Empty state */
+.lib-empty {
+  text-align: center; padding: 60px 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.lib-empty-icon { font-size: 3rem; opacity: 0.25; }
+.lib-empty-text { font-family: 'Lora', serif; font-style: italic; color: var(--ink-muted); font-size: 0.95rem; }
+.lib-empty-sub { font-size: 0.75rem; color: var(--ink-muted); }
+
+/* Loading skeleton */
+.skeleton { background: linear-gradient(90deg, var(--surface2) 25%, var(--border-strong) 50%, var(--surface2) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 6px; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* Context menu */
+.ctx-menu {
+  position: fixed; background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-heavy);
+  z-index: 100; min-width: 160px; overflow: hidden; display: none;
+}
+.ctx-menu.show { display: block; }
+.ctx-item {
+  padding: 11px 16px; font-size: 0.82rem; color: var(--ink-dim); cursor: pointer;
+  display: flex; align-items: center; gap: 10px; transition: background 0.15s;
+}
+.ctx-item:hover { background: var(--surface2); }
+.ctx-item.danger { color: var(--red); }
+.ctx-item svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* Upload progress in library */
+.upload-progress-bar {
+  width: 100%; max-width: 680px; margin: 0 auto;
+  background: var(--surface); border-top: 1px solid var(--border);
+  padding: 12px 20px; display: none; align-items: center; gap: 12px;
+}
+.upload-progress-bar.show { display: flex; }
+.upload-prog-track { flex: 1; height: 3px; background: var(--border-strong); border-radius: 2px; overflow: hidden; }
+.upload-prog-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; width: 0%; }
+.upload-prog-label { font-size: 0.7rem; color: var(--ink-muted); white-space: nowrap; }
 </style>
 </head>
 <body>
+
+<!-- ═══════════════════════════════════════════════
+     LIBRARY SCREEN
+══════════════════════════════════════════════════ -->
+<div id="library-screen">
+  <div class="lib-header">
+    <div class="lib-logo">
+      <img src="logo_Audio_books.webp" alt="Logo">
+      <div class="lib-logo-text">Audio <em>Books</em></div>
+    </div>
+    <div class="lib-actions">
+      <button class="btn-icon" onclick="toggleNight()" title="Night mode">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+      <button class="btn-upload-lib" onclick="document.getElementById('lib-file-input').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        Upload EPUB
+      </button>
+      <input type="file" id="lib-file-input" accept=".epub" style="display:none">
+    </div>
+  </div>
+
+  <div class="lib-body">
+    <div class="lib-section-title">Perpustakaan saya</div>
+    <div class="book-grid" id="book-grid">
+      <!-- populated by JS -->
+    </div>
+    <div class="lib-empty" id="lib-empty" style="display:none">
+      <div class="lib-empty-icon">📚</div>
+      <div class="lib-empty-text">Perpustakaan masih kosong</div>
+      <div class="lib-empty-sub">Upload file EPUB pertama lo</div>
+      <button class="btn-upload-lib" onclick="document.getElementById('lib-file-input').click()" style="margin-top:8px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        Upload EPUB
+      </button>
+    </div>
+  </div>
+
+  <!-- Upload progress -->
+  <div class="upload-progress-bar" id="upload-progress-bar">
+    <div class="upload-prog-track"><div class="upload-prog-fill" id="upload-prog-fill"></div></div>
+    <div class="upload-prog-label" id="upload-prog-label">Mengupload...</div>
+  </div>
+</div>
+
+<!-- Context menu -->
+<div class="ctx-menu" id="ctx-menu">
+  <div class="ctx-item" onclick="ctxOpen()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+    Buka buku
+  </div>
+  <div class="ctx-item danger" onclick="ctxDelete()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+    Hapus buku
+  </div>
+</div>
 
 <!-- ═══════════════════════════════════════════════
      SETUP SCREEN
@@ -499,7 +671,7 @@ input[type=range]::-webkit-slider-thumb {
 <div id="setup-screen">
   <div style="display:flex; flex-direction:column; align-items:center; gap:0;">
     <img src="logo_Audio_books.webp" alt="Audio Books Logo"
-         style="width:110px; height:110px; object-fit:contain; margin-bottom:4px;">
+         style="width:80px; height:auto; object-fit:contain; margin-bottom:2px;">
     <div class="setup-logo">Audio <em>Books</em></div>
     <div class="setup-sub" style="margin-top:4px">Google WaveNet · EPUB · Bahasa Indonesia</div>
   </div>
@@ -688,8 +860,14 @@ input[type=range]::-webkit-slider-thumb {
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
+// ── SUPABASE ──
+const SUPA_URL = 'https://bnjbqdjognowfqqgxkpu.supabase.co';
+const SUPA_KEY = 'sb_publishable_No8ZHPTXSW1XgqzjVJphMg_oYT2-H9H';
+const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+
 // ── STATE ──
 let apiKey = '';
 let selectedVoice = 'id-ID-Wavenet-A';
@@ -700,31 +878,7 @@ let chapters = [];
 let currentChapter = -1;
 let currentSentence = 0;
 let isPlaying = false;
-
-// Pakai element audio yang beneran biar browser treat sebagai media player
-// — kunci agar tetap play saat layar mati di Android.
-// currentAudio bisa diganti (let) — tiap play pakai elemen FRESH biar gak ada
-// race antara play()/pause() di elemen yang sama saat user spam next/rewind.
-let currentAudio = document.createElement('audio');
-function configureAudioEl(el) {
-  el.setAttribute('playsinline', '');
-  el.setAttribute('x-webkit-airplay', 'allow');
-  el.preload = 'auto';
-  // Resume kalau OS interrupt (telepon/notif) saat layar mati — per elemen
-  el.addEventListener('pause', () => {
-    if (isPlaying && el === currentAudio && document.visibilityState !== 'visible') {
-      setTimeout(() => {
-        if (isPlaying && el === currentAudio && el.paused && !el.ended) {
-          el.play().catch(()=>{});
-        }
-      }, 400);
-    }
-  });
-  return el;
-}
-configureAudioEl(currentAudio);
-document.body.appendChild(currentAudio);
-
+let currentAudio = null;
 const audioCache = {};
 const downloadedChapters = new Set();
 let dlCancelled = false;
@@ -764,13 +918,7 @@ function closeSheet() {
 // ── WAKE LOCK ──
 async function requestWakeLock() {
   if ('wakeLock' in navigator) {
-    try {
-      wakeLock = await navigator.wakeLock.request('screen');
-      wakeLock.addEventListener('release', async () => {
-        wakeLock = null;
-        if (isPlaying && document.visibilityState === 'visible') await requestWakeLock();
-      });
-    } catch(e) {}
+    try { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } catch(e) {}
   }
 }
 async function releaseWakeLock() {
@@ -779,20 +927,14 @@ async function releaseWakeLock() {
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible' && isPlaying) {
     await requestWakeLock();
-    if (currentAudio && currentAudio.paused) { 
-      try { await currentAudio.play(); } catch(e) {} 
-    }
+    if (currentAudio && currentAudio.paused && isPlaying) { try { await currentAudio.play(); } catch(e) {} }
   }
 });
 
 // ── MEDIA SESSION ──
 function setupMediaSession() {
   if (!('mediaSession' in navigator)) return;
-  navigator.mediaSession.metadata = new MediaMetadata({ 
-    title: bookTitle || 'Audio Book', 
-    artist: 'Bahrum Creative Tools', 
-    album: chapters[currentChapter]?.title || '' 
-  });
+  navigator.mediaSession.metadata = new MediaMetadata({ title: bookTitle || 'Audio Book', artist: 'Bahrum Creative Tools', album: chapters[currentChapter]?.title || '' });
   navigator.mediaSession.setActionHandler('play', () => { if (!isPlaying) togglePlay(); });
   navigator.mediaSession.setActionHandler('pause', () => { if (isPlaying) togglePlay(); });
   navigator.mediaSession.setActionHandler('previoustrack', () => rewindSentence());
@@ -803,9 +945,7 @@ function setupMediaSession() {
 function updateMediaSessionState(playing) {
   if (!('mediaSession' in navigator)) return;
   navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
-  if (navigator.mediaSession.metadata) { 
-    navigator.mediaSession.metadata.album = chapters[currentChapter]?.title || ''; 
-  }
+  if (navigator.mediaSession.metadata) { navigator.mediaSession.metadata.album = chapters[currentChapter]?.title || ''; }
 }
 
 // ── API ──
@@ -857,7 +997,21 @@ function clearSavedKey() {
 function showApiConnected() {
   document.getElementById('api-panel').classList.add('connected');
   document.getElementById('api-connected-badge').classList.add('show');
-  document.getElementById('upload-zone').style.display = 'block';
+  document.getElementById('upload-zone').style.display = 'none'; // handled by library now
+  // Handle pending actions after connect
+  if (window._pendingEpub) {
+    const f = window._pendingEpub; window._pendingEpub = null;
+    document.getElementById('setup-screen').style.display = 'none';
+    showLibrary().then(() => uploadEpubToSupabase(f));
+  } else if (window._pendingBookId) {
+    const id = window._pendingBookId; window._pendingBookId = null;
+    document.getElementById('setup-screen').style.display = 'none';
+    showLibrary().then(() => openBook(id));
+  } else {
+    // Just go to library
+    document.getElementById('setup-screen').style.display = 'none';
+    showLibrary();
+  }
 }
 function resetApiConnection() {
   document.getElementById('api-panel').classList.remove('connected');
@@ -938,10 +1092,7 @@ async function finalizeSWDownload(chapterIdx, base64Chunks, chapterTitle, bTitle
 function setApiStatus(msg, cls) {
   const el = document.getElementById('api-status'); el.textContent = msg; el.className = 'field-status ' + cls;
 }
-window.addEventListener('DOMContentLoaded', () => {
-  autoFillKey();
-  loadSettings();
-});
+window.addEventListener('DOMContentLoaded', initApp);
 
 // ── UPLOAD ──
 const uploadZone = document.getElementById('upload-zone');
@@ -995,9 +1146,9 @@ async function loadEpub(file) {
     // Switch screens
     document.getElementById('setup-screen').style.display = 'none';
     document.getElementById('reader-screen').style.display = 'flex';
-    loadChapter(0);
     setStatus('Siap diputar');
     showToast(`"${bookTitle}" berhasil dimuat!`);
+    return true; // signal success
   } catch(e) {
     console.error(e);
     setStatus('Gagal memuat: ' + e.message, 'err');
@@ -1037,7 +1188,7 @@ function renderSheetList() {
 
 function chapterClick(i) {
   closeSheet();
-  stopAudio(); loadChapter(i); playFrom(0);
+  stopAudio(); loadChapter(i); startPlaying();
 }
 
 function setActiveChapter(idx) {
@@ -1050,6 +1201,7 @@ function loadChapter(idx) {
   currentChapter = idx; currentSentence = 0;
   setActiveChapter(idx);
   document.getElementById('chapter-tag-top').textContent = `Bab ${idx+1} / ${chapters.length}`;
+  saveProgress();
   document.getElementById('ch-label-btn').textContent = `Bab ${idx+1}`;
   renderTextPanel(); updateProgress();
 }
@@ -1127,45 +1279,55 @@ async function fetchAudio(chIdx, sIdx) {
   audioCache[cacheKey] = url; return url;
 }
 
-// ── PLAYBACK ENGINE ──
-// playbackSession: token yang invalidate semua operasi lama.
-// Setiap aksi user (play/skip/stop) bikin session baru, jadi loop lama auto-mati.
+// ── PLAYBACK ──
+// ── PLAYBACK ENGINE (fixed: session guard + element swap) ──
 let playbackSession = 0;
 
-// Hentikan audio secara sinkron + invalidate semua loop berjalan.
-// KUNCI: kita BUANG elemen audio lama dan ganti dengan yang fresh.
-// Ini menghilangkan race play()/pause() — elemen lama yang promise play()-nya
-// masih pending jadi yatim (gak ke-attach), suaranya gak akan keluar karena
-// src-nya kita kosongkan + di-detach dari DOM.
+function configureAudioEl(el) {
+  el.setAttribute('playsinline', '');
+  el.setAttribute('x-webkit-airplay', 'allow');
+  el.preload = 'auto';
+  el.addEventListener('pause', () => {
+    if (isPlaying && el === currentAudio && document.visibilityState !== 'visible') {
+      setTimeout(() => {
+        if (isPlaying && el === currentAudio && el.paused && !el.ended) el.play().catch(()=>{});
+      }, 400);
+    }
+  });
+  return el;
+}
+
 function killCurrentAudio() {
   playbackSession++;
-  const old = currentAudio;
-  old.onended = null;
-  old.onerror = null;
-  try { old.pause(); } catch(e) {}
-  try { old.removeAttribute('src'); old.load(); } catch(e) {}
-  try { old.remove(); } catch(e) {}
-  // bikin elemen baru yang bersih
+  if (currentAudio) {
+    const old = currentAudio;
+    old.onended = null; old.onerror = null;
+    try { old.pause(); } catch(e) {}
+    try { old.removeAttribute('src'); old.load(); } catch(e) {}
+    try { old.remove(); } catch(e) {}
+  }
   currentAudio = configureAudioEl(document.createElement('audio'));
   document.body.appendChild(currentAudio);
 }
 
-// Entry point TUNGGAL untuk mulai memutar dari sentence tertentu
 async function playFrom(idx) {
   if (currentChapter < 0) return;
-  killCurrentAudio();               // matikan apapun yang lagi jalan (sinkron)
-  currentSentence = idx;            // set SINKRON sebelum await — biar spam skip akumulasi benar
+  killCurrentAudio();
+  currentSentence = idx;
   renderTextPanel(idx); updateProgress();
-  const session = playbackSession;  // klaim session ini (sudah ke-increment di killCurrentAudio)
+  const session = playbackSession;
   isPlaying = true;
   setPlayState('loading');
   setupMediaSession(); updateMediaSessionState(true);
-  requestWakeLock();                // jangan di-await — biar gak ada window race
+  requestWakeLock();
   await playSentence(idx, session);
 }
 
+// Alias supaya kode lama yang manggil startPlaying tetap jalan
+function startPlaying() { return playFrom(currentSentence); }
+
 async function playSentence(idx, session) {
-  // guard: kalau session sudah usang, berhenti total
+  if (session === undefined) session = playbackSession;
   if (session !== playbackSession || !isPlaying) return;
 
   const ch = chapters[currentChapter];
@@ -1181,6 +1343,7 @@ async function playSentence(idx, session) {
   }
 
   currentSentence = idx; updateProgress(); renderTextPanel(idx);
+  if (idx % 5 === 0) saveProgress(); // save reading progress tiap 5 sentence
   setStatus('', 'fetching'); setPlayState('loading');
 
   let url;
@@ -1190,18 +1353,12 @@ async function playSentence(idx, session) {
     isPlaying = false; setPlayState('idle'); setStatus(e.message, 'err'); showToast(e.message); return;
   }
 
-  // cek lagi setelah await — user mungkin sudah skip
   if (session !== playbackSession || !isPlaying) return;
-
   prefetchNext(currentChapter, idx + 1);
 
-  // Capture elemen audio yang AKTIF saat ini ke variabel lokal.
-  // Kalau user skip, killCurrentAudio() ganti currentAudio dengan elemen baru,
-  // jadi `el` di sini jadi yatim dan kita bisa deteksi lewat `el !== currentAudio`.
   const el = currentAudio;
   el.src = url;
   el.load();
-
   el.onended = () => {
     if (session === playbackSession && isPlaying && el === currentAudio) playSentence(idx + 1, session);
   };
@@ -1211,21 +1368,13 @@ async function playSentence(idx, session) {
     }
   };
 
-  try {
-    await el.play();
-  } catch(e) {
-    // AbortError = di-interrupt oleh skip. Session baru yang pegang UI.
-    return;
-  }
+  try { await el.play(); }
+  catch(e) { return; }
 
-  // Setelah play() resolve: kalau elemen ini sudah bukan yang aktif (user skip),
-  // matikan paksa — ini yang nutup celah "ada suara tapi button stop".
   if (el !== currentAudio || session !== playbackSession || !isPlaying) {
     try { el.pause(); el.removeAttribute('src'); el.load(); } catch(e) {}
     return;
   }
-
-  // sukses & valid → tandai sedang membaca
   setPlayState('play'); setStatus('', 'speaking'); updateMediaSessionState(true);
 }
 
@@ -1238,16 +1387,15 @@ function prefetchNext(chIdx, sIdx) {
 function togglePlay() {
   if (currentChapter < 0) { showToast('Pilih bab dulu'); return; }
   if (isPlaying) {
-    // PAUSE: jangan increment session — biar bisa resume dari titik yang sama
     isPlaying = false;
-    try { currentAudio.pause(); } catch(e) {}
+    try { currentAudio && currentAudio.pause(); } catch(e) {}
     setPlayState('idle'); setStatus('Dijeda');
     updateMediaSessionState(false); releaseWakeLock();
+    saveProgress();
   } else {
-    // RESUME: kalau audio masih ada di buffer, lanjut. Kalau tidak, mulai dari currentSentence.
-    if (currentAudio.src && currentAudio.currentTime > 0 && !currentAudio.ended) {
+    if (currentAudio && currentAudio.src && currentAudio.currentTime > 0 && !currentAudio.ended) {
       isPlaying = true;
-      const session = playbackSession; // pakai session yang sama
+      const session = playbackSession;
       const el = currentAudio;
       el.onended = () => { if (session === playbackSession && isPlaying && el === currentAudio) playSentence(currentSentence + 1, session); };
       el.play().catch(()=>{});
@@ -1258,29 +1406,21 @@ function togglePlay() {
   }
 }
 
-// Stop total (dipakai saat ganti bab/buku)
 function stopAudio() {
   isPlaying = false;
   killCurrentAudio();
   setPlayState('idle'); updateMediaSessionState(false); releaseWakeLock();
 }
 
-// Skip — semua lewat playFrom (single entry). Debounce-safe karena killCurrentAudio sinkron.
 function forwardSentence() {
   const max = (chapters[currentChapter]?.sentences.length || 1) - 1;
-  const next = Math.min(currentSentence + 1, max);
-  playFrom(next);
+  playFrom(Math.min(currentSentence + 1, max));
 }
 function rewindSentence() {
-  const prev = Math.max(currentSentence - 1, 0);
-  playFrom(prev);
+  playFrom(Math.max(currentSentence - 1, 0));
 }
-function prevChapter() {
-  if (currentChapter > 0) { stopAudio(); loadChapter(currentChapter - 1); playFrom(0); }
-}
-function nextChapter() {
-  if (currentChapter < chapters.length - 1) { stopAudio(); loadChapter(currentChapter + 1); playFrom(0); }
-}
+function prevChapter() { if (currentChapter > 0) { stopAudio(); loadChapter(currentChapter - 1); playFrom(0); } }
+function nextChapter() { if (currentChapter < chapters.length - 1) { stopAudio(); loadChapter(currentChapter + 1); playFrom(0); } }
 
 // ── RENDER ──
 function renderTextPanel(activeIdx = currentSentence) {
@@ -1288,15 +1428,13 @@ function renderTextPanel(activeIdx = currentSentence) {
   if (currentChapter < 0 || !chapters[currentChapter]) {
     panel.innerHTML = '<div class="reading-empty">Pilih bab untuk mulai membaca &amp; mendengarkan</div>'; return;
   }
-  const ch = chapters[currentChapter];
-  const heading = `<div class="chapter-heading">${escHtml(ch.title)}</div>`;
-  const sentHtml = ch.sentences.map((s, i) => {
+  const sents = chapters[currentChapter].sentences;
+  panel.innerHTML = sents.map((s, i) => {
     let cls = 'sentence-wrap';
     if (i < activeIdx) cls += ' past';
     if (i === activeIdx) cls += ' active';
     return `<span class="${cls}" id="s-${i}">${escHtml(s)} </span>`;
   }).join('');
-  panel.innerHTML = heading + sentHtml;
   if (activeIdx >= 0) {
     setTimeout(() => {
       const el = document.getElementById(`s-${activeIdx}`);
@@ -1317,8 +1455,8 @@ function setPlayState(state) {
   const btn = document.getElementById('btn-play');
   const ip = document.getElementById('icon-play');
   const ipu = document.getElementById('icon-pause');
-  btn.classList.remove('loading-state', 'playing');
-  if (state==='play') { ip.style.display='none'; ipu.style.display='block'; btn.classList.add('playing'); }
+  btn.classList.remove('loading-state');
+  if (state==='play') { ip.style.display='none'; ipu.style.display='block'; }
   else if (state==='loading') { ip.style.display='none'; ipu.style.display='none'; btn.classList.add('loading-state'); }
   else { ip.style.display='block'; ipu.style.display='none'; }
 }
@@ -1357,7 +1495,7 @@ function selectVoice(el) {
   el.classList.add('active');
   Object.keys(audioCache).forEach(k => { URL.revokeObjectURL(audioCache[k]); delete audioCache[k]; });
   saveSettings();
-  if (isPlaying) { const at = currentSentence; stopAudio(); playFrom(at); }
+  if (isPlaying) { stopAudio(); startPlaying(); }
 }
 function updateSpeed(val) { speechRate = parseFloat(val); document.getElementById('speed-val').textContent = speechRate.toFixed(2).replace(/\.?0+$/,'') + '×'; saveSettings(); }
 function updatePitch(val) { pitchVal = parseFloat(val); document.getElementById('pitch-val').textContent = (pitchVal>=0?'+':'') + pitchVal; saveSettings(); }
@@ -1367,12 +1505,282 @@ function showToast(msg) {
   clearTimeout(t._tid); t._tid = setTimeout(() => t.classList.remove('show'), 3500);
 }
 function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// ── LIBRARY ──
+let ctxBookId = null;
+let libraryBooks = [];
+
+async function initApp() {
+  // Load night mode pref
+  if (localStorage.getItem('reader_night') === '1') { isNight = true; document.body.classList.add('night'); }
+  loadSettings();
+
+  // Check API key
+  const savedKey = localStorage.getItem(LS_KEY);
+  if (savedKey) {
+    apiKey = savedKey;
+    // Validate silently
+    try {
+      const res = await fetch(`https://texttospeech.googleapis.com/v1/voices?key=${savedKey}`);
+      if (res.ok) { showApiConnected(); }
+      else { apiKey = ''; }
+    } catch(e) { apiKey = ''; }
+  }
+
+  // Always show library first
+  showLibrary();
+}
+
+async function showLibrary() {
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('reader-screen').style.display = 'none';
+  document.getElementById('library-screen').style.display = 'flex';
+  document.getElementById('library-screen').style.flexDirection = 'column';
+  await loadBooks();
+}
+
+async function loadBooks() {
+  const grid = document.getElementById('book-grid');
+  const empty = document.getElementById('lib-empty');
+
+  // Show skeletons
+  grid.innerHTML = Array(4).fill('').map(() => `
+    <div class="book-card">
+      <div class="book-cover skeleton" style="aspect-ratio:2/3;"></div>
+      <div class="book-info">
+        <div class="skeleton" style="height:12px;border-radius:4px;margin-bottom:6px;"></div>
+        <div class="skeleton" style="height:10px;border-radius:4px;width:60%;"></div>
+      </div>
+    </div>`).join('');
+
+  try {
+    const { data, error } = await supa.from('books').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    libraryBooks = data || [];
+    renderBookGrid(libraryBooks);
+  } catch(e) {
+    grid.innerHTML = '';
+    empty.style.display = 'flex';
+    showToast('Gagal load perpustakaan: ' + e.message);
+  }
+}
+
+function renderBookGrid(books) {
+  const grid = document.getElementById('book-grid');
+  const empty = document.getElementById('lib-empty');
+  if (!books.length) { grid.innerHTML = ''; empty.style.display = 'flex'; return; }
+  empty.style.display = 'none';
+  grid.innerHTML = books.map(b => {
+    const pct = b.progress_pct || 0;
+    const coverHtml = b.cover_url
+      ? `<img src="${b.cover_url}" alt="${escHtml(b.title)}" loading="lazy">`
+      : `<div class="book-cover-placeholder"><div class="book-icon">📖</div><div class="book-initials">${escHtml(b.title)}</div></div>`;
+    return `
+      <div class="book-card" onclick="openBook('${b.id}')">
+        <div class="book-cover" style="position:relative;">
+          ${coverHtml}
+          <button class="book-card-menu" onclick="openCtx(event,'${b.id}')" title="Opsi">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="5" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="19" r="1" fill="currentColor"/>
+            </svg>
+          </button>
+        </div>
+        <div class="book-progress-bar"><div class="book-progress-fill" style="width:${pct}%"></div></div>
+        <div class="book-info">
+          <div class="book-title">${escHtml(b.title)}</div>
+          <div class="book-meta">${b.chapter_count || 0} bab · ${pct}% dibaca</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// Upload EPUB to Supabase
+document.getElementById('lib-file-input').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = '';
+  await uploadEpubToSupabase(file);
+});
+
+async function uploadEpubToSupabase(file) {
+  if (!apiKey) {
+    // Show setup to get API key first
+    document.getElementById('library-screen').style.display = 'none';
+    document.getElementById('setup-screen').style.display = 'flex';
+    // After connect, remember pending file
+    window._pendingEpub = file;
+    showToast('Sambungkan API key dulu');
+    return;
+  }
+
+  const progBar = document.getElementById('upload-progress-bar');
+  const progFill = document.getElementById('upload-prog-fill');
+  const progLabel = document.getElementById('upload-prog-label');
+  progBar.classList.add('show');
+  progFill.style.width = '10%';
+  progLabel.textContent = 'Membaca EPUB...';
+
+  try {
+    // Parse EPUB first to get metadata
+    const ab = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(ab);
+    const containerXml = await zip.file('META-INF/container.xml').async('text');
+    const containerDoc = new DOMParser().parseFromString(containerXml, 'application/xml');
+    const rootfilePath = containerDoc.querySelector('rootfile').getAttribute('full-path');
+    const rootDir = rootfilePath.includes('/') ? rootfilePath.split('/').slice(0,-1).join('/') + '/' : '';
+    const opfText = await zip.file(rootfilePath).async('text');
+    const opfDoc = new DOMParser().parseFromString(opfText, 'application/xml');
+    const title = opfDoc.querySelector('title')?.textContent?.trim() || file.name.replace('.epub','');
+
+    // Count chapters
+    const spineItems = [...opfDoc.querySelectorAll('spine itemref')].map(el => el.getAttribute('idref'));
+    const manifestMap = {};
+    [...opfDoc.querySelectorAll('manifest item')].forEach(el => { manifestMap[el.getAttribute('id')] = { href: el.getAttribute('href'), type: el.getAttribute('media-type') }; });
+    let chCount = 0;
+    for (const id of spineItems) { const it = manifestMap[id]; if (it?.type?.includes('html')) chCount++; }
+
+    // Try get cover image
+    progFill.style.width = '30%'; progLabel.textContent = 'Mengupload file...';
+    let coverUrl = null;
+    const coverId = opfDoc.querySelector('meta[name="cover"]')?.getAttribute('content');
+    if (coverId && manifestMap[coverId]) {
+      const coverPath = rootDir + manifestMap[coverId].href;
+      const coverFile = zip.file(coverPath) || zip.file(manifestMap[coverId].href);
+      if (coverFile) {
+        const coverBytes = await coverFile.async('arraybuffer');
+        const ext = manifestMap[coverId].href.split('.').pop().toLowerCase();
+        const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png';
+        const coverBlob = new Blob([coverBytes], { type: mime });
+        const coverName = `covers/${Date.now()}_cover.${ext}`;
+        const { data: cvData } = await supa.storage.from('epub-files').upload(coverName, coverBlob, { contentType: mime });
+        if (cvData) {
+          const { data: pubData } = supa.storage.from('epub-files').getPublicUrl(coverName);
+          coverUrl = pubData?.publicUrl || null;
+        }
+      }
+    }
+
+    // Upload EPUB file
+    progFill.style.width = '60%'; progLabel.textContent = 'Menyimpan ke perpustakaan...';
+    const epubName = `epubs/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+    const { data: epubData, error: epubErr } = await supa.storage.from('epub-files').upload(epubName, file, { contentType: 'application/epub+zip' });
+    if (epubErr) throw epubErr;
+    const { data: epubPub } = supa.storage.from('epub-files').getPublicUrl(epubName);
+
+    // Save metadata to DB
+    progFill.style.width = '85%'; progLabel.textContent = 'Menyimpan metadata...';
+    const { data: bookData, error: dbErr } = await supa.from('books').insert({
+      title, cover_url: coverUrl, epub_url: epubPub.publicUrl,
+      chapter_count: chCount, progress_pct: 0, current_chapter: 0
+    }).select().single();
+    if (dbErr) throw dbErr;
+
+    progFill.style.width = '100%'; progLabel.textContent = 'Selesai!';
+    setTimeout(() => { progBar.classList.remove('show'); progFill.style.width = '0%'; }, 1500);
+    showToast(`"${title}" berhasil diupload!`);
+    await loadBooks();
+
+  } catch(e) {
+    progBar.classList.remove('show');
+    showToast('Upload gagal: ' + e.message);
+    console.error(e);
+  }
+}
+
+async function openBook(bookId) {
+  const book = libraryBooks.find(b => b.id === bookId);
+  if (!book) return;
+
+  if (!book.epub_url) { showToast('File EPUB tidak ditemukan'); return; }
+
+  // Check API key
+  if (!apiKey) {
+    window._pendingBookId = bookId;
+    document.getElementById('library-screen').style.display = 'none';
+    document.getElementById('setup-screen').style.display = 'flex';
+    showToast('Sambungkan API key dulu');
+    return;
+  }
+
+  showToast('Memuat buku...');
+  try {
+    const res = await fetch(book.epub_url);
+    const ab = await res.arrayBuffer();
+    const file = new File([ab], book.title + '.epub', { type: 'application/epub+zip' });
+    document.getElementById('library-screen').style.display = 'none';
+    await loadEpubFromLibrary(file, book);
+  } catch(e) {
+    showToast('Gagal memuat: ' + e.message);
+  }
+}
+
+async function loadEpubFromLibrary(file, bookMeta) {
+  window._currentBookMeta = bookMeta;
+
+  // Fetch fresh progress from Supabase (avoid stale cache)
+  let resumeCh = 0, resumeSent = 0;
+  try {
+    const { data } = await supa.from('books').select('current_chapter, current_sentence').eq('id', bookMeta.id).single();
+    if (data) { resumeCh = data.current_chapter || 0; resumeSent = data.current_sentence || 0; }
+  } catch(e) { /* fallback to bookMeta */ resumeCh = bookMeta.current_chapter || 0; resumeSent = bookMeta.current_sentence || 0; }
+
+  const ok = await loadEpub(file);
+  if (!ok) return;
+
+  // Restore chapter & sentence after epub fully parsed
+  if (resumeCh > 0 || resumeSent > 0) {
+    loadChapter(resumeCh);
+    currentSentence = resumeSent;
+    renderTextPanel(resumeSent);
+    updateProgress();
+    showToast(`Lanjut dari bab ${resumeCh + 1}, kalimat ${resumeSent + 1}`);
+  } else {
+    loadChapter(0);
+  }
+}
+
+// Save reading progress to Supabase
+async function saveProgress() {
+  const meta = window._currentBookMeta;
+  if (!meta || currentChapter < 0) return;
+  const pct = Math.round((currentChapter / Math.max(chapters.length - 1, 1)) * 100);
+  await supa.from('books').update({
+    current_chapter: currentChapter,
+    current_sentence: currentSentence,
+    progress_pct: pct
+  }).eq('id', meta.id);
+}
+
+// Context menu
+function openCtx(e, bookId) {
+  e.stopPropagation();
+  ctxBookId = bookId;
+  const menu = document.getElementById('ctx-menu');
+  menu.classList.add('show');
+  menu.style.top = Math.min(e.clientY, window.innerHeight - 100) + 'px';
+  menu.style.left = Math.min(e.clientX, window.innerWidth - 170) + 'px';
+}
+function ctxOpen() { closeCtx(); openBook(ctxBookId); }
+async function ctxDelete() {
+  closeCtx();
+  const book = libraryBooks.find(b => b.id === ctxBookId);
+  if (!book) return;
+  if (!confirm(`Hapus "${book.title}" dari perpustakaan?`)) return;
+  try {
+    await supa.from('books').delete().eq('id', book.id);
+    showToast('Buku dihapus');
+    await loadBooks();
+  } catch(e) { showToast('Gagal hapus: ' + e.message); }
+}
+function closeCtx() { document.getElementById('ctx-menu').classList.remove('show'); }
+document.addEventListener('click', closeCtx);
+
 function resetBook() {
   stopAudio(); chapters = []; currentChapter = -1; currentSentence = 0;
-  downloadedChapters.clear(); fileInput.value = '';
+  downloadedChapters.clear();
+  window._currentBookMeta = null;
   document.getElementById('reader-screen').style.display = 'none';
-  document.getElementById('setup-screen').style.display = 'flex';
   document.body.classList.remove('text-expanded');
+  showLibrary();
 }
 </script>
 

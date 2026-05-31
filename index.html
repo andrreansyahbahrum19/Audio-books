@@ -753,7 +753,6 @@ input[type=range]::-webkit-slider-thumb {
         <button class="chip" data-voice="id-ID-Wavenet-C" data-gender="MALE" onclick="selectVoice(this)">Wavenet-C ♂</button>
         <button class="chip" data-voice="id-ID-Wavenet-D" data-gender="FEMALE" onclick="selectVoice(this)">Wavenet-D ♀</button>
         <button class="chip" data-voice="id-ID-Neural2-A" data-gender="FEMALE" onclick="selectVoice(this)">Neural2-A ♀</button>
-        <button class="chip" data-voice="id-ID-Neural2-C" data-gender="MALE" onclick="selectVoice(this)">Neural2-C ♂</button>
       </div>
     </div>
     <div class="speed-row">
@@ -1263,7 +1262,29 @@ async function fetchAudioRaw(text) {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ input: { text }, voice: { languageCode: 'id-ID', name: selectedVoice, ssmlGender: selectedGender }, audioConfig: { audioEncoding: 'MP3', speakingRate: speechRate, pitch: pitchVal, effectsProfileId: ['headphone-class-device'] } })
   });
-  if (!res.ok) { const err = await res.json().catch(()=>({error:{message:'TTS error'}})); throw new Error(err.error?.message || 'TTS error'); }
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({error:{message:'TTS error'}}));
+    const msg = err.error?.message || 'TTS error';
+    // Fallback: kalau voice gak ada, balik ke Wavenet-A otomatis
+    if (/does not exist|misspelled|not found/i.test(msg) && selectedVoice !== 'id-ID-Wavenet-A') {
+      const badVoice = selectedVoice;
+      selectedVoice = 'id-ID-Wavenet-A'; selectedGender = 'FEMALE';
+      document.querySelectorAll('.chip[data-voice]').forEach(c => c.classList.toggle('active', c.dataset.voice === 'id-ID-Wavenet-A'));
+      saveSettings();
+      showToast(`Suara ${badVoice.replace('id-ID-','')} gak tersedia — pakai Wavenet-A`);
+      // retry sekali dengan voice valid
+      const res2 = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: { text }, voice: { languageCode: 'id-ID', name: selectedVoice, ssmlGender: selectedGender }, audioConfig: { audioEncoding: 'MP3', speakingRate: speechRate, pitch: pitchVal, effectsProfileId: ['headphone-class-device'] } })
+      });
+      if (!res2.ok) { const e2 = await res2.json().catch(()=>({error:{message:'TTS error'}})); throw new Error(e2.error?.message || 'TTS error'); }
+      const d2 = await res2.json();
+      const b2 = atob(d2.audioContent); const by2 = new Uint8Array(b2.length);
+      for (let i = 0; i < b2.length; i++) by2[i] = b2.charCodeAt(i);
+      return by2.buffer;
+    }
+    throw new Error(msg);
+  }
   const data = await res.json();
   const binary = atob(data.audioContent); const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);

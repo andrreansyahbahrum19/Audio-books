@@ -702,11 +702,27 @@ let currentSentence = 0;
 let isPlaying = false;
 
 // Pakai element audio yang beneran biar browser treat sebagai media player
-// — kunci agar tetap play saat layar mati di Android
-const currentAudio = document.createElement('audio');
-currentAudio.setAttribute('playsinline', '');
-currentAudio.setAttribute('x-webkit-airplay', 'allow');
-currentAudio.preload = 'auto';
+// — kunci agar tetap play saat layar mati di Android.
+// currentAudio bisa diganti (let) — tiap play pakai elemen FRESH biar gak ada
+// race antara play()/pause() di elemen yang sama saat user spam next/rewind.
+let currentAudio = document.createElement('audio');
+function configureAudioEl(el) {
+  el.setAttribute('playsinline', '');
+  el.setAttribute('x-webkit-airplay', 'allow');
+  el.preload = 'auto';
+  // Resume kalau OS interrupt (telepon/notif) saat layar mati — per elemen
+  el.addEventListener('pause', () => {
+    if (isPlaying && el === currentAudio && document.visibilityState !== 'visible') {
+      setTimeout(() => {
+        if (isPlaying && el === currentAudio && el.paused && !el.ended) {
+          el.play().catch(()=>{});
+        }
+      }, 400);
+    }
+  });
+  return el;
+}
+configureAudioEl(currentAudio);
 document.body.appendChild(currentAudio);
 
 const audioCache = {};
@@ -766,18 +782,6 @@ document.addEventListener('visibilitychange', async () => {
     if (currentAudio && currentAudio.paused) { 
       try { await currentAudio.play(); } catch(e) {} 
     }
-  }
-});
-
-// Handle audio interrupted by OS (phone call, notification, etc)
-currentAudio.addEventListener('pause', () => {
-  if (isPlaying && document.visibilityState !== 'visible') {
-    // OS interrupted — try resume after brief delay
-    setTimeout(async () => {
-      if (isPlaying && currentAudio.paused) {
-        try { await currentAudio.play(); } catch(e) {}
-      }
-    }, 500);
   }
 });
 
@@ -1128,22 +1132,35 @@ async function fetchAudio(chIdx, sIdx) {
 // Setiap aksi user (play/skip/stop) bikin session baru, jadi loop lama auto-mati.
 let playbackSession = 0;
 
-// Hentikan audio secara sinkron + invalidate semua loop berjalan
+// Hentikan audio secara sinkron + invalidate semua loop berjalan.
+// KUNCI: kita BUANG elemen audio lama dan ganti dengan yang fresh.
+// Ini menghilangkan race play()/pause() — elemen lama yang promise play()-nya
+// masih pending jadi yatim (gak ke-attach), suaranya gak akan keluar karena
+// src-nya kita kosongkan + di-detach dari DOM.
 function killCurrentAudio() {
   playbackSession++;
-  currentAudio.onended = null;
-  currentAudio.onerror = null;
-  try { currentAudio.pause(); } catch(e) {}
-  try { currentAudio.removeAttribute('src'); currentAudio.load(); } catch(e) {}
+  const old = currentAudio;
+  old.onended = null;
+  old.onerror = null;
+  try { old.pause(); } catch(e) {}
+  try { old.removeAttribute('src'); old.load(); } catch(e) {}
+  try { old.remove(); } catch(e) {}
+  // bikin elemen baru yang bersih
+  currentAudio = configureAudioEl(document.createElement('audio'));
+  document.body.appendChild(currentAudio);
 }
 
 // Entry point TUNGGAL untuk mulai memutar dari sentence tertentu
 async function playFrom(idx) {
   if (currentChapter < 0) return;
-  killCurrentAudio();               // matikan apapun yang lagi jalan
+  killCurrentAudio();               // matikan apapun yang lagi jalan (sinkron)
+  currentSentence = idx;            // set SINKRON sebelum await — biar spam skip akumulasi benar
+  renderTextPanel(idx); updateProgress();
   const session = playbackSession;  // klaim session ini (sudah ke-increment di killCurrentAudio)
   isPlaying = true;
-  setupMediaSession(); updateMediaSessionState(true); await requestWakeLock();
+  setPlayState('loading');
+  setupMediaSession(); updateMediaSessionState(true);
+  requestWakeLock();                // jangan di-await — biar gak ada window race
   await playSentence(idx, session);
 }
 
@@ -1178,33 +1195,38 @@ async function playSentence(idx, session) {
 
   prefetchNext(currentChapter, idx + 1);
 
-  currentAudio.src = url;
-  currentAudio.load();
+  // Capture elemen audio yang AKTIF saat ini ke variabel lokal.
+  // Kalau user skip, killCurrentAudio() ganti currentAudio dengan elemen baru,
+  // jadi `el` di sini jadi yatim dan kita bisa deteksi lewat `el !== currentAudio`.
+  const el = currentAudio;
+  el.src = url;
+  el.load();
 
-  // attach handler SEBELUM play, dengan guard session
-  currentAudio.onended = () => {
-    if (session === playbackSession && isPlaying) playSentence(idx + 1, session);
+  el.onended = () => {
+    if (session === playbackSession && isPlaying && el === currentAudio) playSentence(idx + 1, session);
   };
-  currentAudio.onerror = () => {
-    if (session === playbackSession && isPlaying) {
+  el.onerror = () => {
+    if (session === playbackSession && isPlaying && el === currentAudio) {
       setStatus('Error audio', 'err'); isPlaying = false; setPlayState('idle');
     }
   };
 
   try {
-    await currentAudio.play();
+    await el.play();
   } catch(e) {
-    // AbortError = di-interrupt oleh skip baru. Jangan ubah state apapun,
-    // session baru yang akan handle UI-nya.
-    if (session !== playbackSession) return;
-    // error lain (misal autoplay block) — set idle
-    isPlaying = false; setPlayState('idle'); return;
+    // AbortError = di-interrupt oleh skip. Session baru yang pegang UI.
+    return;
   }
 
-  // sukses play & masih session valid → tandai sedang membaca
-  if (session === playbackSession && isPlaying) {
-    setPlayState('play'); setStatus('', 'speaking'); updateMediaSessionState(true);
+  // Setelah play() resolve: kalau elemen ini sudah bukan yang aktif (user skip),
+  // matikan paksa — ini yang nutup celah "ada suara tapi button stop".
+  if (el !== currentAudio || session !== playbackSession || !isPlaying) {
+    try { el.pause(); el.removeAttribute('src'); el.load(); } catch(e) {}
+    return;
   }
+
+  // sukses & valid → tandai sedang membaca
+  setPlayState('play'); setStatus('', 'speaking'); updateMediaSessionState(true);
 }
 
 function prefetchNext(chIdx, sIdx) {
@@ -1226,8 +1248,9 @@ function togglePlay() {
     if (currentAudio.src && currentAudio.currentTime > 0 && !currentAudio.ended) {
       isPlaying = true;
       const session = playbackSession; // pakai session yang sama
-      currentAudio.onended = () => { if (session === playbackSession && isPlaying) playSentence(currentSentence + 1, session); };
-      currentAudio.play().catch(()=>{});
+      const el = currentAudio;
+      el.onended = () => { if (session === playbackSession && isPlaying && el === currentAudio) playSentence(currentSentence + 1, session); };
+      el.play().catch(()=>{});
       setPlayState('play'); setStatus('', 'speaking'); updateMediaSessionState(true); requestWakeLock();
     } else {
       playFrom(currentSentence);

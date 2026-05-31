@@ -15,8 +15,25 @@
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-* { -webkit-tap-highlight-color: transparent; }
-button, input { -webkit-appearance: none; touch-action: manipulation; }
+html { -webkit-tap-highlight-color: rgba(0,0,0,0); }
+* { -webkit-tap-highlight-color: rgba(0,0,0,0); -webkit-tap-highlight-color: transparent; }
+button, input, .chip, .ch-item, .btn-icon, .btn-ctrl, .btn-play, .btn-chapters,
+.btn-primary, .btn-text, .btn-api-reset, .sheet-close, .upload-zone, .expand-btn,
+.ch-dl-btn, .btn-cancel, .field-toggle, .upload-label strong {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+  outline: none;
+}
+button:focus, button:focus-visible, button:active,
+.chip:focus, .ch-item:focus, .upload-zone:focus, .expand-btn:focus {
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.field-input { -webkit-user-select: text; user-select: text; }
 
 :root {
   --bg:            #f2ede3;
@@ -1016,7 +1033,7 @@ function renderSheetList() {
 
 function chapterClick(i) {
   closeSheet();
-  stopAudio(); loadChapter(i); startPlaying();
+  stopAudio(); loadChapter(i); playFrom(0);
 }
 
 function setActiveChapter(idx) {
@@ -1106,91 +1123,141 @@ async function fetchAudio(chIdx, sIdx) {
   audioCache[cacheKey] = url; return url;
 }
 
-// ── PLAYBACK ──
-let playbackSession = 0; // increment setiap kali stop/skip — cancel semua loop lama
+// ── PLAYBACK ENGINE ──
+// playbackSession: token yang invalidate semua operasi lama.
+// Setiap aksi user (play/skip/stop) bikin session baru, jadi loop lama auto-mati.
+let playbackSession = 0;
 
-async function startPlaying() {
-  if (currentChapter < 0) return;
-  isPlaying = true;
-  const session = ++playbackSession;
-  setPlayState('play');
-  setupMediaSession(); updateMediaSessionState(true); await requestWakeLock();
-  await playSentence(currentSentence, session);
-}
-async function playSentence(idx, session) {
-  if (!isPlaying || session !== playbackSession) return;
-  const ch = chapters[currentChapter];
-  if (!ch || idx >= ch.sentences.length) {
-    if (currentChapter < chapters.length-1) { loadChapter(currentChapter+1); currentSentence=0; await playSentence(0, session); }
-    else { isPlaying=false; setPlayState('idle'); setStatus('Selesai dibaca 🎉'); renderTextPanel(-1); updateMediaSessionState(false); releaseWakeLock(); }
-    return;
-  }
-  currentSentence = idx; updateProgress(); renderTextPanel(idx);
-  setStatus('', 'fetching'); setPlayState('loading');
-  let url;
-  try { url = await fetchAudio(currentChapter, idx); }
-  catch(e) { 
-    if (session !== playbackSession) return;
-    isPlaying=false; setPlayState('idle'); setStatus(e.message,'err'); showToast(e.message); return; 
-  }
-  if (!isPlaying || session !== playbackSession) return;
-  setPlayState('play'); setStatus('', 'speaking'); updateMediaSessionState(true);
-  prefetchNext(currentChapter, idx+1);
+// Hentikan audio secara sinkron + invalidate semua loop berjalan
+function killCurrentAudio() {
+  playbackSession++;
   currentAudio.onended = null;
   currentAudio.onerror = null;
+  try { currentAudio.pause(); } catch(e) {}
+  try { currentAudio.removeAttribute('src'); currentAudio.load(); } catch(e) {}
+}
+
+// Entry point TUNGGAL untuk mulai memutar dari sentence tertentu
+async function playFrom(idx) {
+  if (currentChapter < 0) return;
+  killCurrentAudio();               // matikan apapun yang lagi jalan
+  const session = playbackSession;  // klaim session ini (sudah ke-increment di killCurrentAudio)
+  isPlaying = true;
+  setupMediaSession(); updateMediaSessionState(true); await requestWakeLock();
+  await playSentence(idx, session);
+}
+
+async function playSentence(idx, session) {
+  // guard: kalau session sudah usang, berhenti total
+  if (session !== playbackSession || !isPlaying) return;
+
+  const ch = chapters[currentChapter];
+  if (!ch || idx >= ch.sentences.length) {
+    if (currentChapter < chapters.length - 1) {
+      loadChapter(currentChapter + 1);
+      await playSentence(0, session);
+    } else {
+      isPlaying = false; setPlayState('idle'); setStatus('Selesai dibaca 🎉');
+      renderTextPanel(-1); updateMediaSessionState(false); releaseWakeLock();
+    }
+    return;
+  }
+
+  currentSentence = idx; updateProgress(); renderTextPanel(idx);
+  setStatus('', 'fetching'); setPlayState('loading');
+
+  let url;
+  try { url = await fetchAudio(currentChapter, idx); }
+  catch(e) {
+    if (session !== playbackSession) return;
+    isPlaying = false; setPlayState('idle'); setStatus(e.message, 'err'); showToast(e.message); return;
+  }
+
+  // cek lagi setelah await — user mungkin sudah skip
+  if (session !== playbackSession || !isPlaying) return;
+
+  prefetchNext(currentChapter, idx + 1);
+
   currentAudio.src = url;
   currentAudio.load();
-  try { await currentAudio.play(); } catch(e) { return; }
-  currentAudio.onended = () => { if (isPlaying && session === playbackSession) playSentence(idx+1, session); };
-  currentAudio.onerror = () => { if (isPlaying && session === playbackSession) { setStatus('Error audio','err'); isPlaying=false; setPlayState('idle'); } };
+
+  // attach handler SEBELUM play, dengan guard session
+  currentAudio.onended = () => {
+    if (session === playbackSession && isPlaying) playSentence(idx + 1, session);
+  };
+  currentAudio.onerror = () => {
+    if (session === playbackSession && isPlaying) {
+      setStatus('Error audio', 'err'); isPlaying = false; setPlayState('idle');
+    }
+  };
+
+  try {
+    await currentAudio.play();
+  } catch(e) {
+    // AbortError = di-interrupt oleh skip baru. Jangan ubah state apapun,
+    // session baru yang akan handle UI-nya.
+    if (session !== playbackSession) return;
+    // error lain (misal autoplay block) — set idle
+    isPlaying = false; setPlayState('idle'); return;
+  }
+
+  // sukses play & masih session valid → tandai sedang membaca
+  if (session === playbackSession && isPlaying) {
+    setPlayState('play'); setStatus('', 'speaking'); updateMediaSessionState(true);
+  }
 }
+
 function prefetchNext(chIdx, sIdx) {
-  if (!isPlaying) return;
   const ch = chapters[chIdx]; if (!ch || sIdx >= ch.sentences.length) return;
   const key = `${chIdx}-${sIdx}-${selectedVoice}-${speechRate}-${pitchVal}`;
   if (!audioCache[key]) fetchAudio(chIdx, sIdx).catch(()=>{});
 }
+
 function togglePlay() {
   if (currentChapter < 0) { showToast('Pilih bab dulu'); return; }
   if (isPlaying) {
-    isPlaying=false; playbackSession++;
-    currentAudio.onended = null; currentAudio.onerror = null;
-    currentAudio.pause();
+    // PAUSE: jangan increment session — biar bisa resume dari titik yang sama
+    isPlaying = false;
+    try { currentAudio.pause(); } catch(e) {}
     setPlayState('idle'); setStatus('Dijeda');
     updateMediaSessionState(false); releaseWakeLock();
   } else {
-    if (currentAudio.paused && currentAudio.src) {
-      isPlaying=true; 
-      const session = ++playbackSession;
-      currentAudio.play();
-      currentAudio.onended = () => { if (isPlaying && session === playbackSession) playSentence(currentSentence+1, session); };
-      setPlayState('play'); setStatus('','speaking'); updateMediaSessionState(true); requestWakeLock();
+    // RESUME: kalau audio masih ada di buffer, lanjut. Kalau tidak, mulai dari currentSentence.
+    if (currentAudio.src && currentAudio.currentTime > 0 && !currentAudio.ended) {
+      isPlaying = true;
+      const session = playbackSession; // pakai session yang sama
+      currentAudio.onended = () => { if (session === playbackSession && isPlaying) playSentence(currentSentence + 1, session); };
+      currentAudio.play().catch(()=>{});
+      setPlayState('play'); setStatus('', 'speaking'); updateMediaSessionState(true); requestWakeLock();
+    } else {
+      playFrom(currentSentence);
     }
-    else startPlaying();
   }
 }
+
+// Stop total (dipakai saat ganti bab/buku)
 function stopAudio() {
-  isPlaying=false;
-  playbackSession++; // invalidate semua loop yang lagi jalan
-  currentAudio.onended = null; currentAudio.onerror = null;
-  currentAudio.pause();
-  currentAudio.src='';
+  isPlaying = false;
+  killCurrentAudio();
   setPlayState('idle'); updateMediaSessionState(false); releaseWakeLock();
 }
-async function forwardSentence() { 
-  stopAudio(); 
-  currentSentence = Math.min(currentSentence+1, (chapters[currentChapter]?.sentences.length||1)-1); 
-  renderTextPanel(currentSentence); updateProgress(); 
-  await startPlaying(); 
+
+// Skip — semua lewat playFrom (single entry). Debounce-safe karena killCurrentAudio sinkron.
+function forwardSentence() {
+  const max = (chapters[currentChapter]?.sentences.length || 1) - 1;
+  const next = Math.min(currentSentence + 1, max);
+  playFrom(next);
 }
-async function rewindSentence() { 
-  stopAudio(); 
-  currentSentence = Math.max(currentSentence-1, 0); 
-  renderTextPanel(currentSentence); updateProgress(); 
-  await startPlaying(); 
+function rewindSentence() {
+  const prev = Math.max(currentSentence - 1, 0);
+  playFrom(prev);
 }
-function prevChapter() { stopAudio(); if(currentChapter>0){loadChapter(currentChapter-1);startPlaying();} }
-function nextChapter() { stopAudio(); if(currentChapter<chapters.length-1){loadChapter(currentChapter+1);startPlaying();} }
+function prevChapter() {
+  if (currentChapter > 0) { stopAudio(); loadChapter(currentChapter - 1); playFrom(0); }
+}
+function nextChapter() {
+  if (currentChapter < chapters.length - 1) { stopAudio(); loadChapter(currentChapter + 1); playFrom(0); }
+}
 
 // ── RENDER ──
 function renderTextPanel(activeIdx = currentSentence) {
@@ -1267,7 +1334,7 @@ function selectVoice(el) {
   el.classList.add('active');
   Object.keys(audioCache).forEach(k => { URL.revokeObjectURL(audioCache[k]); delete audioCache[k]; });
   saveSettings();
-  if (isPlaying) { stopAudio(); startPlaying(); }
+  if (isPlaying) { const at = currentSentence; stopAudio(); playFrom(at); }
 }
 function updateSpeed(val) { speechRate = parseFloat(val); document.getElementById('speed-val').textContent = speechRate.toFixed(2).replace(/\.?0+$/,'') + '×'; saveSettings(); }
 function updatePitch(val) { pitchVal = parseFloat(val); document.getElementById('pitch-val').textContent = (pitchVal>=0?'+':'') + pitchVal; saveSettings(); }

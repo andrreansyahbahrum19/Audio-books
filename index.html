@@ -967,31 +967,31 @@ input[type=range]::-webkit-slider-thumb {
   <!-- READING AREA -->
   <div class="reading-area" id="reading-area">
     <div class="reading-text" id="reading-text">
-
-    <!-- SELECTION BUBBLE -->
-    <div class="sel-bubble" id="sel-bubble">
-      <button class="sel-btn" onclick="selBookmark()">🔖 Tandai</button>
-      <div class="sel-sep"></div>
-      <button class="sel-btn" onclick="selCariArti()">📖 Cari Arti</button>
-    </div>
-
-    <!-- DEFINISI BUBBLE -->
-    <div class="def-bubble" id="def-bubble">
-      <div class="def-bhead">
-        <div class="def-bword" id="def-bword"></div>
-        <button class="def-bclose" onclick="closeDefBubble()">✕</button>
-      </div>
-      <div class="def-bbody" id="def-bbody"><div class="def-bload">Mencari arti...</div></div>
-    </div>
-
-    <!-- BOOKMARK TOAST -->
-    <div class="bm-toast" id="bm-toast">🔖 Ditandai</div>
-
-    <!-- BOOKMARK BADGE (legacy) -->
-    <div class="bm-badge" id="bm-badge">🔖 Posisi baca ditandai</div>
       <div class="reading-empty">Pilih bab untuk mulai membaca &amp; mendengarkan</div>
     </div>
   </div>
+
+  <!-- SELECTION BUBBLE — di luar reading-text biar gak kehapus saat render bab -->
+  <div class="sel-bubble" id="sel-bubble">
+    <button class="sel-btn" onclick="selBookmark()">🔖 Tandai</button>
+    <div class="sel-sep"></div>
+    <button class="sel-btn" onclick="selCariArti()">📖 Cari Arti</button>
+  </div>
+
+  <!-- DEFINISI BUBBLE -->
+  <div class="def-bubble" id="def-bubble">
+    <div class="def-bhead">
+      <div class="def-bword" id="def-bword"></div>
+      <button class="def-bclose" onclick="closeDefBubble()">✕</button>
+    </div>
+    <div class="def-bbody" id="def-bbody"><div class="def-bload">Mencari arti...</div></div>
+  </div>
+
+  <!-- BOOKMARK TOAST -->
+  <div class="bm-toast" id="bm-toast">🔖 Ditandai</div>
+
+  <!-- BOOKMARK BADGE -->
+  <div class="bm-badge" id="bm-badge">🔖 Posisi baca ditandai</div>
 
   <!-- EXPAND BUTTON — fixed top-right -->
   <button class="expand-btn" onclick="toggleExpand()" title="Perluas teks">
@@ -1995,21 +1995,6 @@ function posSelBubble(rect) {
 function hideSelBubble() {
   document.getElementById('sel-bubble')?.classList.remove('show');
 }
-
-function closeDefBubble() {
-  document.getElementById('def-bubble')?.classList.remove('show');
-}
-
-document.addEventListener('mouseup', checkSel);
-document.addEventListener('touchend', checkSel);
-document.addEventListener('selectionchange', () => {
-  if (!window.getSelection()?.toString()?.trim()) hideSelBubble();
-});
-document.addEventListener('mousedown', e => {
-  if (!document.getElementById('sel-bubble')?.contains(e.target)) hideSelBubble();
-  if (!document.getElementById('def-bubble')?.contains(e.target) &&
-      !document.getElementById('sel-bubble')?.contains(e.target)) closeDefBubble();
-});
 
 // ── BOOKMARK ──
 async function doBookmark() {

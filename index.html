@@ -2022,16 +2022,17 @@ const selBookmark = () => doBookmark();
 const selCariArti = () => doCariArti();
 async function doBookmark() {
   hideSelBubble();
-  window.getSelection()?.removeAllRanges();
 
-  // Tentukan sentence index dari seleksi — cari span yang di-select
-  const sel = window.getSelection();
-  let bmSentIdx = currentSentence; // default posisi audio sekarang
+  // Tentukan sentence index SEBELUM clear selection
+  let bmSentIdx = currentSentence;
   if (lastSelText && chapters[currentChapter]) {
     const sents = chapters[currentChapter].sentences;
     const found = sents.findIndex(s => s.includes(lastSelText.trim().slice(0, 30)));
     if (found >= 0) bmSentIdx = found;
   }
+
+  // Baru clear selection
+  window.getSelection()?.removeAllRanges();
 
   // Hapus highlight bookmark lama
   document.querySelectorAll('.sentence-wrap.bookmarked')
@@ -2043,15 +2044,21 @@ async function doBookmark() {
 
   // Simpan ke Supabase
   const meta = window._currentBookMeta;
-  if (meta && currentChapter >= 0) {
-    await supa.from('books').update({
-      current_chapter: currentChapter,
-      current_sentence: bmSentIdx,
-      progress_pct: Math.round((currentChapter / Math.max(chapters.length - 1, 1)) * 100)
-    }).eq('id', meta.id).catch(() => {});
+  let saved = false;
+  if (meta?.id && currentChapter >= 0) {
+    try {
+      const { error } = await supa.from('books').update({
+        current_chapter: currentChapter,
+        current_sentence: bmSentIdx,
+        progress_pct: Math.round((currentChapter / Math.max(chapters.length - 1, 1)) * 100)
+      }).eq('id', meta.id);
+      if (!error) saved = true;
+    } catch(e) {}
   }
-  // Simpan ke localStorage
-  localStorage.setItem(`bm_${meta?.id || 'local'}`, JSON.stringify({
+
+  // Simpan ke localStorage (fallback + selalu)
+  const bmKey = `bm_${meta?.id || 'local'}`;
+  localStorage.setItem(bmKey, JSON.stringify({
     chapter: currentChapter, sentence: bmSentIdx,
     text: lastSelText.slice(0, 60), ts: Date.now()
   }));
@@ -2381,12 +2388,27 @@ async function openBook(bookId) {
 async function loadEpubFromLibrary(file, bookMeta) {
   window._currentBookMeta = bookMeta;
 
-  // Fetch fresh progress from Supabase (avoid stale cache)
+  // Fetch fresh progress — Supabase dulu, fallback localStorage
   let resumeCh = 0, resumeSent = 0;
   try {
     const { data } = await supa.from('books').select('current_chapter, current_sentence').eq('id', bookMeta.id).single();
-    if (data) { resumeCh = data.current_chapter || 0; resumeSent = data.current_sentence || 0; }
-  } catch(e) { /* fallback to bookMeta */ resumeCh = bookMeta.current_chapter || 0; resumeSent = bookMeta.current_sentence || 0; }
+    if (data && (data.current_chapter > 0 || data.current_sentence > 0)) {
+      resumeCh = data.current_chapter || 0;
+      resumeSent = data.current_sentence || 0;
+    } else {
+      // Fallback localStorage
+      const lsBm = localStorage.getItem(`bm_${bookMeta.id}`);
+      if (lsBm) { const bm = JSON.parse(lsBm); resumeCh = bm.chapter || 0; resumeSent = bm.sentence || 0; }
+    }
+  } catch(e) {
+    resumeCh = bookMeta.current_chapter || 0;
+    resumeSent = bookMeta.current_sentence || 0;
+    // Coba localStorage
+    try {
+      const lsBm = localStorage.getItem(`bm_${bookMeta.id}`);
+      if (lsBm) { const bm = JSON.parse(lsBm); resumeCh = bm.chapter || 0; resumeSent = bm.sentence || 0; }
+    } catch(e2) {}
+  }
 
   const ok = await loadEpub(file);
   if (!ok) return;

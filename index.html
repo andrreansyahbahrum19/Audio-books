@@ -769,6 +769,12 @@ input[type=range]::-webkit-slider-thumb {
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
         </svg>
       </button>
+      <button class="btn-icon" onclick="showSetup()" title="Pengaturan API Key" id="btn-settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
       <button class="btn-upload-lib" onclick="document.getElementById('lib-file-input').click()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -2165,8 +2171,28 @@ async function initApp() {
         !document.getElementById('sel-bubble')?.contains(e.target)) closeDefBubble();
   });
 
+  // Auto-load Claude key dari localStorage + pre-fill form
+  const savedClaude = localStorage.getItem('buku_suara_claude_key');
+  const savedProxy = localStorage.getItem('buku_suara_claude_proxy') || 'https://restless-bar-9a2d.andrreansyahbahrum.workers.dev';
+  if (savedClaude) {
+    claudeApiKey = savedClaude;
+    const inp = document.getElementById('claude-key-input');
+    if (inp) inp.value = savedClaude;
+  }
+  // Worker URL selalu pre-fill
+  CLAUDE_PROXY_URL = savedProxy;
+  const proxyInp = document.getElementById('claude-proxy-input');
+  if (proxyInp) proxyInp.value = savedProxy;
+  const st = document.getElementById('claude-status');
+  if (st && savedClaude) { st.textContent = '✓ Claude API key aktif'; st.style.color = 'var(--green)'; }
+
   // Always show library first
   showLibrary();
+}
+
+function showSetup() {
+  document.getElementById('library-screen').style.display = 'none';
+  document.getElementById('setup-screen').style.display = 'flex';
 }
 
 async function showLibrary() {
@@ -2371,7 +2397,17 @@ async function loadEpubFromLibrary(file, bookMeta) {
     currentSentence = resumeSent;
     renderTextPanel(resumeSent);
     updateProgress();
-    showToast(`Lanjut dari bab ${resumeCh + 1}, kalimat ${resumeSent + 1}`);
+    // Highlight bookmark + scroll ke posisi
+    setTimeout(() => {
+      const el = document.getElementById(`s-${resumeSent}`);
+      const container = document.getElementById('reading-area');
+      if (el) el.classList.add('bookmarked');
+      if (el && container) {
+        const er = el.getBoundingClientRect(), rr = container.getBoundingClientRect();
+        container.scrollTo({ top: Math.max(0, er.top - rr.top + container.scrollTop - container.clientHeight / 2), behavior: 'smooth' });
+      }
+    }, 400);
+    showToast(`📖 Lanjut bab ${resumeCh + 1}, kal. ${resumeSent + 1}`);
   } else {
     loadChapter(0);
   }

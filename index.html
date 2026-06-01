@@ -278,43 +278,49 @@ body.text-expanded .bottom-player { display: none !important; }
 ::selection { background: rgba(90,90,82,.2); color: var(--ink); }
 body.night ::selection { background: rgba(192,168,88,.25); color: var(--ink); }
 
-/* ── SELECTION BUBBLE (muncul di bawah seleksi) ── */
+/* ── SELECTION BUBBLE — nyambung sama app, light surface ── */
 .sel-bubble {
   position: fixed; z-index: 900;
-  display: flex; gap: 1px; align-items: center;
-  background: var(--ink); border-radius: 22px;
-  box-shadow: 0 4px 20px rgba(0,0,0,.22);
-  padding: 4px 5px;
+  display: flex; align-items: center; gap: 2px;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-heavy);
+  padding: 5px 6px;
   opacity: 0; pointer-events: none;
-  transition: opacity .14s, transform .14s;
+  transition: opacity .16s, transform .16s;
   transform: translateY(-4px);
   white-space: nowrap;
 }
 .sel-bubble.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
-/* Tail nunjuk ke atas → ke arah teks yang diseleksi */
 .sel-bubble::before {
   content: ''; position: absolute;
-  top: -7px; left: 50%; transform: translateX(-50%);
+  top: -7px; left: var(--tail-left, 50%); transform: translateX(-50%);
   border: 7px solid transparent;
-  border-bottom-color: var(--ink); border-top: none;
+  border-bottom-color: var(--border-strong); border-top: none;
 }
-.spop-btn {
-  display: flex; align-items: center; gap: 5px;
-  padding: 7px 13px; border-radius: 18px;
-  background: none; color: var(--bg);
-  font-family: 'DM Sans', sans-serif; font-size: .75rem; font-weight: 500;
-  cursor: pointer; transition: background .12s; white-space: nowrap;
+.sel-bubble::after {
+  content: ''; position: absolute;
+  top: -6px; left: var(--tail-left, 50%); transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-bottom-color: var(--surface); border-top: none;
 }
-.spop-btn:hover { background: rgba(255,255,255,.13); }
-.spop-sep { width: 1px; height: 18px; background: rgba(255,255,255,.2); flex-shrink: 0; margin: 0 1px; }
+.sel-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 12px; border-radius: 10px;
+  background: none; color: var(--ink-dim);
+  font-family: 'DM Sans', sans-serif; font-size: .74rem; font-weight: 500;
+  cursor: pointer; transition: background .14s, color .14s; white-space: nowrap;
+}
+.sel-btn:hover { background: var(--accent-light); color: var(--accent); }
+.sel-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; margin: 0 2px; }
 
-/* ── DEFINISI BUBBLE (chat bubble di bawah seleksi) ── */
+/* ── DEFINISI BUBBLE ── */
 .def-bubble {
-  position: fixed; z-index: 901;
+  position: fixed; z-index: 950;
   width: min(300px, 88vw);
   background: var(--surface); border: 1px solid var(--border-strong);
-  border-radius: 18px; box-shadow: var(--shadow-heavy);
-  overflow: hidden;
+  border-radius: var(--radius); box-shadow: var(--shadow-heavy);
+  overflow: visible;
   opacity: 0; pointer-events: none;
   transition: opacity .2s, transform .2s;
   transform: translateY(6px);
@@ -322,28 +328,37 @@ body.night ::selection { background: rgba(192,168,88,.25); color: var(--ink); }
 .def-bubble.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
 .def-bubble::before {
   content: ''; position: absolute;
-  top: -8px; left: 28px;
-  border: 8px solid transparent;
+  top: -7px; left: var(--tail-left, 28px);
+  border: 7px solid transparent;
+  border-bottom-color: var(--border-strong); border-top: none;
+}
+.def-bubble::after {
+  content: ''; position: absolute;
+  top: -6px; left: var(--tail-left, 28px);
+  border: 6px solid transparent;
   border-bottom-color: var(--surface); border-top: none;
 }
 .def-bhead {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 14px 8px; border-bottom: 1px solid var(--border);
+  padding: 11px 12px 9px; border-bottom: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0; overflow: hidden;
 }
-.def-bword { font-family: 'Lora', serif; font-size: .95rem; font-weight: 600; color: var(--ink); }
+.def-bword { font-family: 'Lora', serif; font-size: .92rem; font-weight: 600; color: var(--ink); }
 .def-bclose {
-  width: 26px; height: 26px; border-radius: 50%;
-  background: var(--bg-warm); color: var(--ink-muted);
-  display: flex; align-items: center; justify-content: center;
-  font-size: .78rem; cursor: pointer; flex-shrink: 0; transition: all .15s;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--bg-warm); border: 1px solid var(--border);
+  color: var(--ink-muted); display: flex; align-items: center; justify-content: center;
+  font-size: .75rem; font-weight: 600; cursor: pointer; flex-shrink: 0;
+  transition: all .15s; z-index: 951; position: relative;
 }
-.def-bclose:hover { background: var(--border-strong); color: var(--ink); }
+.def-bclose:hover { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
 .def-bbody {
-  padding: 10px 14px 14px; max-height: 38vh; overflow-y: auto;
+  padding: 10px 12px 13px; max-height: 36vh; overflow-y: auto;
   font-size: .8rem; color: var(--ink-dim); line-height: 1.7;
+  border-radius: 0 0 var(--radius) var(--radius);
 }
 .def-loading { text-align: center; color: var(--ink-muted); padding: 10px 0; font-size: .78rem; }
-.def-stream { white-space: pre-wrap; line-height: 1.7; }
+.def-stream { white-space: pre-wrap; line-height: 1.75; }
 
 /* Bookmark toast */
 .bm-badge {
@@ -463,24 +478,7 @@ body.night .bottom-player { box-shadow: 0 -4px 32px rgba(0,0,0,0.3); }
 .chip:hover { border-color: var(--accent); color: var(--ink); }
 .chip.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
 
-/* ── SELECTION BUBBLE ── */
-.sel-bubble{position:fixed;z-index:500;display:flex;gap:1px;align-items:center;background:var(--ink);border-radius:22px;box-shadow:0 4px 20px rgba(0,0,0,.22);padding:4px 5px;opacity:0;pointer-events:none;transition:opacity .14s,transform .14s;transform:translateY(-4px);white-space:nowrap;}
-.sel-bubble.show{opacity:1;pointer-events:auto;transform:translateY(0)}
-.sel-bubble::before{content:'';position:absolute;top:-7px;left:var(--tail-left,50%);transform:translateX(-50%);border:7px solid transparent;border-bottom-color:var(--ink);border-top:none;}
-.sel-btn{display:flex;align-items:center;gap:5px;padding:7px 13px;border-radius:18px;background:none;color:var(--bg);font-family:'DM Sans',sans-serif;font-size:.76rem;font-weight:500;cursor:pointer;transition:background .12s;}
-.sel-btn:hover{background:rgba(255,255,255,.13)}
-.sel-sep{width:1px;height:18px;background:rgba(255,255,255,.2);flex-shrink:0;margin:0 1px}
-/* ── DEFINISI BUBBLE ── */
-.def-bubble{position:fixed;z-index:501;width:min(300px,88vw);background:var(--surface);border:1px solid var(--border-strong);border-radius:18px;box-shadow:var(--shadow-heavy);overflow:hidden;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;transform:translateY(6px);}
-.def-bubble.show{opacity:1;pointer-events:auto;transform:translateY(0)}
-.def-bubble::before{content:'';position:absolute;top:-8px;left:var(--tail-left,32px);border:8px solid transparent;border-bottom-color:var(--surface);border-top:none;filter:drop-shadow(0 -1px 0 var(--border-strong));}
-.def-bhead{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 8px;border-bottom:1px solid var(--border);}
-.def-bword{font-family:'Lora',serif;font-size:.95rem;font-weight:600;color:var(--ink)}
-.def-bclose{width:26px;height:26px;border-radius:50%;background:var(--bg-warm);border:none;color:var(--ink-muted);display:flex;align-items:center;justify-content:center;font-size:.78rem;cursor:pointer;flex-shrink:0;transition:all .15s;}
-.def-bclose:hover{background:var(--border-strong);color:var(--ink)}
-.def-bbody{padding:10px 14px 14px;max-height:38vh;overflow-y:auto;font-size:.8rem;color:var(--ink-dim);line-height:1.7;}
-.def-stream{white-space:pre-wrap;line-height:1.7}
-.def-bload{text-align:center;color:var(--ink-muted);padding:10px 0;font-size:.78rem}
+/* sel-bubble, def-bubble: lihat block CSS di atas (line ~282) */
 /* Bookmark toast */
 .bm-toast{position:fixed;bottom:120px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--ink);color:var(--bg);border-radius:20px;font-size:.75rem;padding:8px 18px;z-index:502;opacity:0;pointer-events:none;transition:all .25s;white-space:nowrap;}
 .bm-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}

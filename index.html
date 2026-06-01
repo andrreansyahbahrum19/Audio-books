@@ -1885,9 +1885,22 @@ function renderTextPanel(activeIdx = currentSentence) {
     panel.innerHTML = html;
   }
   scrollToSentence(activeIdx);
+  // Restore bookmark highlight setelah DOM direbuild
+  restoreBookmarkHighlight();
 }
 
-// Lightweight update: hanya geser highlight + scroll, tanpa rebuild DOM
+// Restore bookmark highlight dari localStorage setelah render
+function restoreBookmarkHighlight() {
+  const meta = window._currentBookMeta;
+  const bmKey = `bm_${meta?.id || 'local'}`;
+  try {
+    const bm = JSON.parse(localStorage.getItem(bmKey) || 'null');
+    if (bm && bm.chapter === currentChapter && bm.sentence >= 0) {
+      const el = document.getElementById(`s-${bm.sentence}`);
+      if (el) el.classList.add('bookmarked');
+    }
+  } catch(e) {}
+}
 // Dipanggil setiap kalimat saat playback berjalan
 function updateActiveSentence(idx) {
   const prev = document.querySelector('.sentence-wrap.active');
@@ -1898,6 +1911,8 @@ function updateActiveSentence(idx) {
   const el = document.getElementById(`s-${idx}`);
   if (el) el.classList.add('active');
   scrollToSentence(idx);
+  // Pastiin bookmark highlight gak hilang saat update active
+  restoreBookmarkHighlight();
 }
 
 // Scroll container ke kalimat aktif — manual, reliable di Android WebView kecil

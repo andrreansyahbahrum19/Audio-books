@@ -1974,7 +1974,7 @@ function checkSel() {
     lastSelText = text;
     lastSelRect = sel.getRangeAt(0).getBoundingClientRect();
     posSelBubble(lastSelRect);
-  }, 100);
+  }, 500); // 500ms — biar native Android toolbar keburu muncul dulu, bubble lo muncul di bawahnya
 }
 
 function posSelBubble(rect) {

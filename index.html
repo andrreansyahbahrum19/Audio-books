@@ -341,7 +341,7 @@ body.night ::selection { background: rgba(192,168,88,.25); color: var(--ink); }
 .def-bhead {
   display: flex; align-items: center; justify-content: space-between;
   padding: 11px 12px 9px; border-bottom: 1px solid var(--border);
-  border-radius: var(--radius) var(--radius) 0 0; overflow: hidden;
+  border-radius: var(--radius) var(--radius) 0 0;
 }
 .def-bword { font-family: 'Lora', serif; font-size: .92rem; font-weight: 600; color: var(--ink); }
 .def-bclose {
@@ -349,7 +349,8 @@ body.night ::selection { background: rgba(192,168,88,.25); color: var(--ink); }
   background: var(--bg-warm); border: 1px solid var(--border);
   color: var(--ink-muted); display: flex; align-items: center; justify-content: center;
   font-size: .75rem; font-weight: 600; cursor: pointer; flex-shrink: 0;
-  transition: all .15s; z-index: 951; position: relative;
+  transition: all .15s; z-index: 960; position: relative;
+  pointer-events: all !important;
 }
 .def-bclose:hover { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
 .def-bbody {

@@ -1067,12 +1067,12 @@ const SUPA_KEY = 'sb_publishable_No8ZHPTXSW1XgqzjVJphMg_oYT2-H9H';
 const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
 
 // ── STATE ──
-let apiKey = '';
+let apiKey = 'AIzaSyCKIDWnykBO9fiEL3ebGM5nxCS_QAU-kwU';
 // Claude API key — diload dari localStorage, bukan hardcoded
-let claudeApiKey = '';
+let claudeApiKey = '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';
 const LS_CLAUDE_KEY = 'buku_suara_claude_key';
 // Ganti dengan Worker URL lo setelah deploy (contoh: https://claude-proxy.NAMALO.workers.dev)
-let CLAUDE_PROXY_URL = localStorage.getItem('buku_suara_claude_proxy') || '';
+let CLAUDE_PROXY_URL = 'https://restless-bar-9a2d.andrreansyahbahrum.workers.dev';
 
 function toggleClaudeVis() {
   const inp = document.getElementById('claude-key-input');
@@ -1995,7 +1995,13 @@ function hideSelBubble() {
   document.getElementById('sel-bubble')?.classList.remove('show');
 }
 
-// ── BOOKMARK ──
+function closeDefBubble() {
+  document.getElementById('def-bubble')?.classList.remove('show');
+}
+
+// Alias untuk onclick di HTML
+const selBookmark = () => doBookmark();
+const selCariArti = () => doCariArti();
 async function doBookmark() {
   hideSelBubble();
   window.getSelection()?.removeAllRanges();
@@ -2101,8 +2107,7 @@ async function askClaude(word) {
 }
 
 // Alias buat onclick HTML
-const selBookmark = doBookmark;
-const selCariArti = doCariArti;
+// (selBookmark & selCariArti sudah didefinisikan di atas)
 
 // ── LIBRARY ──
 
@@ -2115,7 +2120,8 @@ async function initApp() {
   if (localStorage.getItem('reader_night') === '1') { isNight = true; document.body.classList.add('night'); }
   loadSettings();
   loadReaderStyle();
-  loadClaudeKey();
+  // Key sudah hardcoded — langsung connected, skip form input
+  showApiConnected();
   // Init native text selection bubble (Tandai + Cari Arti)
   document.addEventListener('mouseup', checkSel);
   document.addEventListener('touchend', checkSel);
@@ -2127,16 +2133,6 @@ async function initApp() {
     if (!document.getElementById('def-bubble')?.contains(e.target) &&
         !document.getElementById('sel-bubble')?.contains(e.target)) closeDefBubble();
   });
-  const savedKey = localStorage.getItem(LS_KEY);
-  if (savedKey) {
-    apiKey = savedKey;
-    // Validate silently
-    try {
-      const res = await fetch(`https://texttospeech.googleapis.com/v1/voices?key=${savedKey}`);
-      if (res.ok) { showApiConnected(); }
-      else { apiKey = ''; }
-    } catch(e) { apiKey = ''; }
-  }
 
   // Always show library first
   showLibrary();

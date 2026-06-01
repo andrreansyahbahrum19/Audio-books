@@ -831,6 +831,20 @@ input[type=range]::-webkit-slider-thumb {
     <p class="field-hint">Buat API key di <a href="https://console.cloud.google.com/apis/credentials" target="_blank">console.cloud.google.com</a>. Key disimpan di browser, tidak dikirim ke server.</p>
     <p class="field-status" id="api-status"></p>
     <button class="btn-text" id="btn-clear-key" onclick="clearSavedKey()" style="display:none">🗑 Hapus key tersimpan</button>
+
+    <!-- Claude API Key (untuk fitur Cari Arti) -->
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+      <p class="setup-card-title" style="font-size:.82rem;margin-bottom:8px">🤖 Claude API Key <span style="font-size:.7rem;color:var(--ink-muted);font-weight:400">(opsional — untuk fitur Cari Arti)</span></p>
+      <div class="field-row">
+        <div class="field-wrap">
+          <input type="password" class="field-input" id="claude-key-input" placeholder="sk-ant-..." autocomplete="off">
+          <button class="field-toggle" onclick="toggleClaudeVis()">👁</button>
+        </div>
+        <button class="btn-primary" id="btn-claude" onclick="saveClaudeKey()">Simpan</button>
+      </div>
+      <p class="field-hint">Buat API key di <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>. Digunakan hanya untuk fitur Cari Arti kata.</p>
+      <p class="field-status" id="claude-status"></p>
+    </div>
   </div>
 
   <!-- CONNECTED BADGE — shows after API connected -->
@@ -1071,9 +1085,37 @@ const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
 
 // ── STATE ──
 let apiKey = '';
-// Claude API key untuk fitur Cari Arti
-// Ganti string di bawah dengan API key lo: sk-ant-...
-const CLAUDE_API_KEY = 'GANTI_DENGAN_API_KEY_LO';
+// Claude API key — diload dari localStorage, bukan hardcoded
+let claudeApiKey = '';
+const LS_CLAUDE_KEY = 'buku_suara_claude_key';
+
+function toggleClaudeVis() {
+  const inp = document.getElementById('claude-key-input');
+  if (inp) inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+function saveClaudeKey() {
+  const key = (document.getElementById('claude-key-input')?.value || '').trim();
+  if (!key || !key.startsWith('sk-ant-')) {
+    const st = document.getElementById('claude-status');
+    if (st) { st.textContent = '❌ Format key tidak valid (harus sk-ant-...)'; st.style.color = 'var(--red)'; }
+    return;
+  }
+  claudeApiKey = key;
+  localStorage.setItem(LS_CLAUDE_KEY, key);
+  const st = document.getElementById('claude-status');
+  if (st) { st.textContent = '✓ Claude API key tersimpan'; st.style.color = 'var(--green)'; }
+  showToast('Claude key tersimpan!');
+}
+function loadClaudeKey() {
+  const saved = localStorage.getItem(LS_CLAUDE_KEY);
+  if (saved) {
+    claudeApiKey = saved;
+    const inp = document.getElementById('claude-key-input');
+    if (inp) inp.value = saved;
+    const st = document.getElementById('claude-status');
+    if (st) { st.textContent = '✓ Claude API key aktif'; st.style.color = 'var(--green)'; }
+  }
+}
 let selectedVoice = 'id-ID-Wavenet-A';
 let selectedGender = 'FEMALE';
 let speechRate = 1.0;
@@ -2024,8 +2066,8 @@ async function doCariArti() {
 
 async function askClaude(word) {
   const body = document.getElementById('def-bbody');
-  if (!CLAUDE_API_KEY || CLAUDE_API_KEY === 'GANTI_DENGAN_API_KEY_LO') {
-    if (body) body.innerHTML = '<div class="def-bload" style="color:var(--red)">API key belum diset.<br><small>Isi CLAUDE_API_KEY di index.html</small></div>';
+  if (!claudeApiKey) {
+    if (body) body.innerHTML = '<div class="def-bload" style="color:var(--red)">Claude API key belum diset.<br><small>Tambahkan di halaman utama → Claude API Key</small></div>';
     return;
   }
   try {
@@ -2033,7 +2075,7 @@ async function askClaude(word) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': CLAUDE_API_KEY,
+        'x-api-key': claudeApiKey,
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
@@ -2090,6 +2132,7 @@ async function initApp() {
   if (localStorage.getItem('reader_night') === '1') { isNight = true; document.body.classList.add('night'); }
   loadSettings();
   loadReaderStyle();
+  loadClaudeKey();
   // Init native text selection bubble (Tandai + Cari Arti)
   document.addEventListener('mouseup', checkSel);
   document.addEventListener('touchend', checkSel);

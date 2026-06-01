@@ -273,8 +273,20 @@ body.text-expanded .bottom-player { display: none !important; }
 }
 .reading-text > .reader-head:not(:first-child) { margin-top: 1.6em; }
 
+/* ── SENTENCE WRAP ── */
 /* sentence-wrap: user-select ON, teks bisa disorot normal */
 .sentence-wrap { display: inline; transition: opacity 0.4s, color 0.3s; -webkit-user-select: text; user-select: text; }
+/* Bookmark highlight — kalimat terakhir yang di-tandai */
+.sentence-wrap.bookmarked {
+  background: rgba(90,90,82,.12);
+  border-radius: 3px;
+  box-shadow: inset 2px 0 0 var(--accent);
+  padding-left: 4px;
+}
+body.night .sentence-wrap.bookmarked {
+  background: rgba(192,168,88,.14);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
 ::selection { background: rgba(90,90,82,.2); color: var(--ink); }
 body.night ::selection { background: rgba(192,168,88,.25); color: var(--ink); }
 
@@ -1069,7 +1081,7 @@ const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
 // ── STATE ──
 let apiKey = 'AIzaSyCKIDWnykBO9fiEL3ebGM5nxCS_QAU-kwU';
 // Claude API key — diload dari localStorage, bukan hardcoded
-let claudeApiKey = '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';
+let claudeApiKey = localStorage.getItem('buku_suara_claude_key') || '';
 const LS_CLAUDE_KEY = 'buku_suara_claude_key';
 // Ganti dengan Worker URL lo setelah deploy (contoh: https://claude-proxy.NAMALO.workers.dev)
 let CLAUDE_PROXY_URL = 'https://restless-bar-9a2d.andrreansyahbahrum.workers.dev';
@@ -2005,26 +2017,45 @@ const selCariArti = () => doCariArti();
 async function doBookmark() {
   hideSelBubble();
   window.getSelection()?.removeAllRanges();
+
+  // Tentukan sentence index dari seleksi — cari span yang di-select
+  const sel = window.getSelection();
+  let bmSentIdx = currentSentence; // default posisi audio sekarang
+  if (lastSelText && chapters[currentChapter]) {
+    const sents = chapters[currentChapter].sentences;
+    const found = sents.findIndex(s => s.includes(lastSelText.trim().slice(0, 30)));
+    if (found >= 0) bmSentIdx = found;
+  }
+
+  // Hapus highlight bookmark lama
+  document.querySelectorAll('.sentence-wrap.bookmarked')
+    .forEach(el => el.classList.remove('bookmarked'));
+
+  // Highlight kalimat yang di-bookmark
+  const bmSpan = document.getElementById(`s-${bmSentIdx}`);
+  if (bmSpan) bmSpan.classList.add('bookmarked');
+
   // Simpan ke Supabase
   const meta = window._currentBookMeta;
   if (meta && currentChapter >= 0) {
-    const pct = Math.round((currentChapter / Math.max(chapters.length - 1, 1)) * 100);
     await supa.from('books').update({
       current_chapter: currentChapter,
-      current_sentence: currentSentence,
-      progress_pct: pct
+      current_sentence: bmSentIdx,
+      progress_pct: Math.round((currentChapter / Math.max(chapters.length - 1, 1)) * 100)
     }).eq('id', meta.id).catch(() => {});
   }
-  // Fallback localStorage
+  // Simpan ke localStorage
   localStorage.setItem(`bm_${meta?.id || 'local'}`, JSON.stringify({
-    chapter: currentChapter, sentence: currentSentence,
+    chapter: currentChapter, sentence: bmSentIdx,
     text: lastSelText.slice(0, 60), ts: Date.now()
   }));
-  const badge = document.getElementById('bm-badge');
-  const preview = lastSelText.length > 24 ? lastSelText.slice(0, 24) + '…' : lastSelText;
-  badge.innerHTML = `🔖 "${preview}"`;
-  badge.classList.add('show');
-  setTimeout(() => badge.classList.remove('show'), 2400);
+
+  // Toast notif
+  const toast = document.getElementById('bm-toast');
+  const preview = lastSelText.length > 28 ? lastSelText.slice(0, 28) + '…' : lastSelText;
+  toast.innerHTML = '🔖 Ditandai: "' + preview + '"';
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2600);
 }
 
 // Auto-bookmark tiap kalimat audio diputar

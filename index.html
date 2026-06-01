@@ -273,15 +273,91 @@ body.text-expanded .bottom-player { display: none !important; }
 }
 .reading-text > .reader-head:not(:first-child) { margin-top: 1.6em; }
 
-.sentence-wrap { display: inline; transition: opacity 0.4s, color 0.3s; }
+/* sentence-wrap: user-select ON, teks bisa disorot normal */
+.sentence-wrap { display: inline; transition: opacity 0.4s, color 0.3s; -webkit-user-select: text; user-select: text; }
+::selection { background: rgba(90,90,82,.2); color: var(--ink); }
+body.night ::selection { background: rgba(192,168,88,.25); color: var(--ink); }
+
+/* ── SELECTION BUBBLE (muncul di bawah seleksi) ── */
+.sel-bubble {
+  position: fixed; z-index: 900;
+  display: flex; gap: 1px; align-items: center;
+  background: var(--ink); border-radius: 22px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.22);
+  padding: 4px 5px;
+  opacity: 0; pointer-events: none;
+  transition: opacity .14s, transform .14s;
+  transform: translateY(-4px);
+  white-space: nowrap;
+}
+.sel-bubble.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
+/* Tail nunjuk ke atas → ke arah teks yang diseleksi */
+.sel-bubble::before {
+  content: ''; position: absolute;
+  top: -7px; left: 50%; transform: translateX(-50%);
+  border: 7px solid transparent;
+  border-bottom-color: var(--ink); border-top: none;
+}
+.spop-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 7px 13px; border-radius: 18px;
+  background: none; color: var(--bg);
+  font-family: 'DM Sans', sans-serif; font-size: .75rem; font-weight: 500;
+  cursor: pointer; transition: background .12s; white-space: nowrap;
+}
+.spop-btn:hover { background: rgba(255,255,255,.13); }
+.spop-sep { width: 1px; height: 18px; background: rgba(255,255,255,.2); flex-shrink: 0; margin: 0 1px; }
+
+/* ── DEFINISI BUBBLE (chat bubble di bawah seleksi) ── */
+.def-bubble {
+  position: fixed; z-index: 901;
+  width: min(300px, 88vw);
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: 18px; box-shadow: var(--shadow-heavy);
+  overflow: hidden;
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s, transform .2s;
+  transform: translateY(6px);
+}
+.def-bubble.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
+.def-bubble::before {
+  content: ''; position: absolute;
+  top: -8px; left: 28px;
+  border: 8px solid transparent;
+  border-bottom-color: var(--surface); border-top: none;
+}
+.def-bhead {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px 8px; border-bottom: 1px solid var(--border);
+}
+.def-bword { font-family: 'Lora', serif; font-size: .95rem; font-weight: 600; color: var(--ink); }
+.def-bclose {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--bg-warm); color: var(--ink-muted);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .78rem; cursor: pointer; flex-shrink: 0; transition: all .15s;
+}
+.def-bclose:hover { background: var(--border-strong); color: var(--ink); }
+.def-bbody {
+  padding: 10px 14px 14px; max-height: 38vh; overflow-y: auto;
+  font-size: .8rem; color: var(--ink-dim); line-height: 1.7;
+}
+.def-loading { text-align: center; color: var(--ink-muted); padding: 10px 0; font-size: .78rem; }
+.def-stream { white-space: pre-wrap; line-height: 1.7; }
+
+/* Bookmark toast */
+.bm-badge {
+  position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%) translateY(10px);
+  background: var(--ink); color: var(--bg); border-radius: 20px;
+  font-size: .75rem; padding: 7px 16px; z-index: 902;
+  opacity: 0; pointer-events: none; transition: all .25s; white-space: nowrap;
+}
+.bm-badge.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .sentence-wrap.past { opacity: 0.28; }
 .sentence-wrap.active {
-  color: var(--ink);
-  text-decoration: underline;
+  color: var(--ink); text-decoration: underline;
   text-decoration-color: var(--accent);
-  text-underline-offset: 3px;
-  text-decoration-thickness: 1px;
-  opacity: 1;
+  text-underline-offset: 3px; text-decoration-thickness: 1px; opacity: 1;
 }
 
 /* Expand button — fixed top-right of reading area */
@@ -387,7 +463,27 @@ body.night .bottom-player { box-shadow: 0 -4px 32px rgba(0,0,0,0.3); }
 .chip:hover { border-color: var(--accent); color: var(--ink); }
 .chip.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
 
-/* ── TEXT SETTINGS BAR (collapsible) — ukuran teks, spasi, perataan ── */
+/* ── SELECTION BUBBLE ── */
+.sel-bubble{position:fixed;z-index:500;display:flex;gap:1px;align-items:center;background:var(--ink);border-radius:22px;box-shadow:0 4px 20px rgba(0,0,0,.22);padding:4px 5px;opacity:0;pointer-events:none;transition:opacity .14s,transform .14s;transform:translateY(-4px);white-space:nowrap;}
+.sel-bubble.show{opacity:1;pointer-events:auto;transform:translateY(0)}
+.sel-bubble::before{content:'';position:absolute;top:-7px;left:var(--tail-left,50%);transform:translateX(-50%);border:7px solid transparent;border-bottom-color:var(--ink);border-top:none;}
+.sel-btn{display:flex;align-items:center;gap:5px;padding:7px 13px;border-radius:18px;background:none;color:var(--bg);font-family:'DM Sans',sans-serif;font-size:.76rem;font-weight:500;cursor:pointer;transition:background .12s;}
+.sel-btn:hover{background:rgba(255,255,255,.13)}
+.sel-sep{width:1px;height:18px;background:rgba(255,255,255,.2);flex-shrink:0;margin:0 1px}
+/* ── DEFINISI BUBBLE ── */
+.def-bubble{position:fixed;z-index:501;width:min(300px,88vw);background:var(--surface);border:1px solid var(--border-strong);border-radius:18px;box-shadow:var(--shadow-heavy);overflow:hidden;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;transform:translateY(6px);}
+.def-bubble.show{opacity:1;pointer-events:auto;transform:translateY(0)}
+.def-bubble::before{content:'';position:absolute;top:-8px;left:var(--tail-left,32px);border:8px solid transparent;border-bottom-color:var(--surface);border-top:none;filter:drop-shadow(0 -1px 0 var(--border-strong));}
+.def-bhead{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 8px;border-bottom:1px solid var(--border);}
+.def-bword{font-family:'Lora',serif;font-size:.95rem;font-weight:600;color:var(--ink)}
+.def-bclose{width:26px;height:26px;border-radius:50%;background:var(--bg-warm);border:none;color:var(--ink-muted);display:flex;align-items:center;justify-content:center;font-size:.78rem;cursor:pointer;flex-shrink:0;transition:all .15s;}
+.def-bclose:hover{background:var(--border-strong);color:var(--ink)}
+.def-bbody{padding:10px 14px 14px;max-height:38vh;overflow-y:auto;font-size:.8rem;color:var(--ink-dim);line-height:1.7;}
+.def-stream{white-space:pre-wrap;line-height:1.7}
+.def-bload{text-align:center;color:var(--ink-muted);padding:10px 0;font-size:.78rem}
+/* Bookmark toast */
+.bm-toast{position:fixed;bottom:120px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--ink);color:var(--bg);border-radius:20px;font-size:.75rem;padding:8px 18px;z-index:502;opacity:0;pointer-events:none;transition:all .25s;white-space:nowrap;}
+.bm-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .text-bar {
   overflow: hidden; max-height: 0; transition: max-height 0.35s ease, opacity 0.3s ease;
   opacity: 0; background: var(--surface); border-bottom: 1px solid var(--border);
@@ -857,6 +953,28 @@ input[type=range]::-webkit-slider-thumb {
   <!-- READING AREA -->
   <div class="reading-area" id="reading-area">
     <div class="reading-text" id="reading-text">
+
+    <!-- SELECTION BUBBLE -->
+    <div class="sel-bubble" id="sel-bubble">
+      <button class="sel-btn" onclick="selBookmark()">🔖 Tandai</button>
+      <div class="sel-sep"></div>
+      <button class="sel-btn" onclick="selCariArti()">📖 Cari Arti</button>
+    </div>
+
+    <!-- DEFINISI BUBBLE -->
+    <div class="def-bubble" id="def-bubble">
+      <div class="def-bhead">
+        <div class="def-bword" id="def-bword"></div>
+        <button class="def-bclose" onclick="closeDefBubble()">✕</button>
+      </div>
+      <div class="def-bbody" id="def-bbody"><div class="def-bload">Mencari arti...</div></div>
+    </div>
+
+    <!-- BOOKMARK TOAST -->
+    <div class="bm-toast" id="bm-toast">🔖 Ditandai</div>
+
+    <!-- BOOKMARK BADGE (legacy) -->
+    <div class="bm-badge" id="bm-badge">🔖 Posisi baca ditandai</div>
       <div class="reading-empty">Pilih bab untuk mulai membaca &amp; mendengarkan</div>
     </div>
   </div>
@@ -953,6 +1071,9 @@ const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
 
 // ── STATE ──
 let apiKey = '';
+// Claude API key untuk fitur Cari Arti
+// Ganti string di bawah dengan API key lo: sk-ant-...
+const CLAUDE_API_KEY = 'GANTI_DENGAN_API_KEY_LO';
 let selectedVoice = 'id-ID-Wavenet-A';
 let selectedGender = 'FEMALE';
 let speechRate = 1.0;
@@ -961,8 +1082,6 @@ let chapters = [];
 let currentChapter = -1;
 let currentSentence = 0;
 let isMuted = false;
-
-// ── MUTE ──
 function toggleMute() {
   isMuted = !isMuted;
   const btn = document.getElementById('btn-mute');
@@ -1584,6 +1703,7 @@ async function playSentence(idx, session) {
   }
 
   currentSentence = idx; updateProgress();
+  autoBookmark(currentChapter, idx);
   // Lightweight update saat playback (geser highlight+scroll, tanpa rebuild DOM)
   // Full render hanya saat idx===0 (awal bab) atau DOM belum ada
   if (idx === 0 || !document.getElementById(`s-${idx}`)) {
@@ -1684,7 +1804,7 @@ function renderTextPanel(activeIdx = currentSentence) {
     let cls = 'sentence-wrap';
     if (i < activeIdx) cls += ' past';
     if (i === activeIdx) cls += ' active';
-    return `<span class="${cls}" id="s-${i}">${escHtml(s)} </span>`;
+    return `<span class="${cls}" id="s-${i}" data-idx="${i}">${escHtml(s)} </span>`;
   };
   if (!meta || meta.length !== sents.length) {
     panel.innerHTML = sents.map(spanFor).join('');
@@ -1798,6 +1918,169 @@ function showToast(msg) {
   clearTimeout(t._tid); t._tid = setTimeout(() => t.classList.remove('show'), 3500);
 }
 function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── NATIVE TEXT SELECTION → BUBBLE POPUP ──
+let lastSelText = '', lastSelRect = null;
+let selTimer = null;
+
+function checkSel() {
+  clearTimeout(selTimer);
+  selTimer = setTimeout(() => {
+    const sel = window.getSelection();
+    const text = (sel?.toString() || '').trim();
+    const ra = document.getElementById('reading-area');
+    if (!text || text.length < 2 || !ra?.contains(sel?.anchorNode)) { hideSelBubble(); return; }
+    lastSelText = text;
+    lastSelRect = sel.getRangeAt(0).getBoundingClientRect();
+    posSelBubble(lastSelRect);
+  }, 100);
+}
+
+function posSelBubble(rect) {
+  const bub = document.getElementById('sel-bubble');
+  const bW = 210;
+  let x = rect.left + rect.width / 2 - bW / 2;
+  let y = rect.bottom + 12;
+  x = Math.max(8, Math.min(x, window.innerWidth - bW - 8));
+  if (y + 50 > window.innerHeight - 100) y = rect.top - 54;
+  // Tail ikut posisi seleksi
+  const tailLeft = Math.min(Math.max(rect.left + rect.width / 2 - x, 16), bW - 24);
+  bub.style.left = x + 'px'; bub.style.top = y + 'px';
+  bub.style.setProperty('--tail-left', tailLeft + 'px');
+  bub.classList.add('show');
+}
+
+function hideSelBubble() {
+  document.getElementById('sel-bubble')?.classList.remove('show');
+}
+
+function closeDefBubble() {
+  document.getElementById('def-bubble')?.classList.remove('show');
+}
+
+document.addEventListener('mouseup', checkSel);
+document.addEventListener('touchend', checkSel);
+document.addEventListener('selectionchange', () => {
+  if (!window.getSelection()?.toString()?.trim()) hideSelBubble();
+});
+document.addEventListener('mousedown', e => {
+  if (!document.getElementById('sel-bubble')?.contains(e.target)) hideSelBubble();
+  if (!document.getElementById('def-bubble')?.contains(e.target) &&
+      !document.getElementById('sel-bubble')?.contains(e.target)) closeDefBubble();
+});
+
+// ── BOOKMARK ──
+async function doBookmark() {
+  hideSelBubble();
+  window.getSelection()?.removeAllRanges();
+  // Simpan ke Supabase
+  const meta = window._currentBookMeta;
+  if (meta && currentChapter >= 0) {
+    const pct = Math.round((currentChapter / Math.max(chapters.length - 1, 1)) * 100);
+    await supa.from('books').update({
+      current_chapter: currentChapter,
+      current_sentence: currentSentence,
+      progress_pct: pct
+    }).eq('id', meta.id).catch(() => {});
+  }
+  // Fallback localStorage
+  localStorage.setItem(`bm_${meta?.id || 'local'}`, JSON.stringify({
+    chapter: currentChapter, sentence: currentSentence,
+    text: lastSelText.slice(0, 60), ts: Date.now()
+  }));
+  const badge = document.getElementById('bm-badge');
+  const preview = lastSelText.length > 24 ? lastSelText.slice(0, 24) + '…' : lastSelText;
+  badge.innerHTML = `🔖 "${preview}"`;
+  badge.classList.add('show');
+  setTimeout(() => badge.classList.remove('show'), 2400);
+}
+
+// Auto-bookmark tiap kalimat audio diputar
+function autoBookmark(chIdx, sIdx) {
+  localStorage.setItem(`bm_auto_${window._currentBookMeta?.id || 'local'}`,
+    JSON.stringify({ chapter: chIdx, sentence: sIdx, ts: Date.now() }));
+}
+
+// ── CARI ARTI VIA CLAUDE API (streaming) ──
+async function doCariArti() {
+  hideSelBubble();
+  const word = lastSelText.trim();
+  window.getSelection()?.removeAllRanges();
+  if (!word) return;
+  // Posisi def-bubble di bawah seleksi
+  const rect = lastSelRect || { left: 20, right: 200, bottom: 200, top: 160, width: 180 };
+  const bW = 300;
+  let x = rect.left + rect.width / 2 - bW / 2;
+  let y = rect.bottom + 14;
+  x = Math.max(8, Math.min(x, window.innerWidth - bW - 8));
+  if (y + 200 > window.innerHeight - 100) y = Math.max(64, rect.top - 220);
+  const def = document.getElementById('def-bubble');
+  def.style.left = x + 'px'; def.style.top = y + 'px';
+  document.getElementById('def-bword').textContent = word;
+  document.getElementById('def-bbody').innerHTML = '<div class="def-loading">Claude sedang mencari arti...</div>';
+  def.classList.add('show');
+  await askClaude(word);
+}
+
+async function askClaude(word) {
+  const body = document.getElementById('def-bbody');
+  if (!CLAUDE_API_KEY || CLAUDE_API_KEY === 'GANTI_DENGAN_API_KEY_LO') {
+    if (body) body.innerHTML = '<div class="def-bload" style="color:var(--red)">API key belum diset.<br><small>Isi CLAUDE_API_KEY di index.html</small></div>';
+    return;
+  }
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': CLAUDE_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 300,
+        stream: true,
+        messages: [{ role: 'user', content:
+          `Jelaskan arti dari kata atau frasa "${word}" dalam Bahasa Indonesia. ` +
+          `Konteks: teks bacaan buku. ` +
+          `Format: langsung tulis artinya saja, singkat (max 3 kalimat), ` +
+          `tanpa pembuka seperti "Kata ini berarti...". ` +
+          `Kalau frasa atau nama tempat/orang, jelaskan konteksnya juga.`
+        }]
+      })
+    });
+    if (!resp.ok) throw new Error('API ' + resp.status);
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let txt = '';
+    body.innerHTML = '<div class="def-stream" id="def-stream"></div>';
+    const out = document.getElementById('def-stream');
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      for (const line of dec.decode(value).split('\n')) {
+        if (!line.startsWith('data:')) continue;
+        const d = line.slice(5).trim();
+        if (d === '[DONE]') break;
+        try {
+          const j = JSON.parse(d);
+          const delta = j.delta?.text || '';
+          if (delta) { txt += delta; out.textContent = txt; }
+        } catch {}
+      }
+    }
+    if (!txt) body.innerHTML = '<div class="def-bload">Tidak ada hasil.</div>';
+  } catch (e) {
+    body.innerHTML = `<div class="def-bload" style="color:var(--red)">Gagal: ${e.message}</div>`;
+  }
+}
+
+// Alias buat onclick HTML
+const selBookmark = doBookmark;
+const selCariArti = doCariArti;
+
+// ── LIBRARY ──
+
 // ── LIBRARY ──
 let ctxBookId = null;
 let libraryBooks = [];
@@ -1807,8 +2090,17 @@ async function initApp() {
   if (localStorage.getItem('reader_night') === '1') { isNight = true; document.body.classList.add('night'); }
   loadSettings();
   loadReaderStyle();
-
-  // Check API key
+  // Init native text selection bubble (Tandai + Cari Arti)
+  document.addEventListener('mouseup', checkSel);
+  document.addEventListener('touchend', checkSel);
+  document.addEventListener('selectionchange', () => {
+    if (!window.getSelection()?.toString()?.trim()) hideSelBubble();
+  });
+  document.addEventListener('mousedown', e => {
+    if (!document.getElementById('sel-bubble')?.contains(e.target)) hideSelBubble();
+    if (!document.getElementById('def-bubble')?.contains(e.target) &&
+        !document.getElementById('sel-bubble')?.contains(e.target)) closeDefBubble();
+  });
   const savedKey = localStorage.getItem(LS_KEY);
   if (savedKey) {
     apiKey = savedKey;

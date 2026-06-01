@@ -843,6 +843,12 @@ input[type=range]::-webkit-slider-thumb {
         <button class="btn-primary" id="btn-claude" onclick="saveClaudeKey()">Simpan</button>
       </div>
       <p class="field-hint">Buat API key di <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>. Digunakan hanya untuk fitur Cari Arti kata.</p>
+      <div class="field-row" style="margin-top:8px">
+        <div class="field-wrap">
+          <input type="text" class="field-input" id="claude-proxy-input" placeholder="https://claude-proxy.namalo.workers.dev" autocomplete="off">
+        </div>
+      </div>
+      <p class="field-hint">URL Cloudflare Worker lo (proxy Claude API). <a href="https://dash.cloudflare.com" target="_blank">Buat di Cloudflare →</a></p>
       <p class="field-status" id="claude-status"></p>
     </div>
   </div>
@@ -1088,6 +1094,8 @@ let apiKey = '';
 // Claude API key — diload dari localStorage, bukan hardcoded
 let claudeApiKey = '';
 const LS_CLAUDE_KEY = 'buku_suara_claude_key';
+// Ganti dengan Worker URL lo setelah deploy (contoh: https://claude-proxy.NAMALO.workers.dev)
+let CLAUDE_PROXY_URL = localStorage.getItem('buku_suara_claude_proxy') || '';
 
 function toggleClaudeVis() {
   const inp = document.getElementById('claude-key-input');
@@ -1095,25 +1103,39 @@ function toggleClaudeVis() {
 }
 function saveClaudeKey() {
   const key = (document.getElementById('claude-key-input')?.value || '').trim();
+  const proxy = (document.getElementById('claude-proxy-input')?.value || '').trim();
+  const st = document.getElementById('claude-status');
   if (!key || !key.startsWith('sk-ant-')) {
-    const st = document.getElementById('claude-status');
     if (st) { st.textContent = '❌ Format key tidak valid (harus sk-ant-...)'; st.style.color = 'var(--red)'; }
     return;
   }
+  if (!proxy || !proxy.startsWith('https://')) {
+    if (st) { st.textContent = '❌ Worker URL harus diisi (https://...)'; st.style.color = 'var(--red)'; }
+    return;
+  }
   claudeApiKey = key;
+  CLAUDE_PROXY_URL = proxy;
   localStorage.setItem(LS_CLAUDE_KEY, key);
-  const st = document.getElementById('claude-status');
-  if (st) { st.textContent = '✓ Claude API key tersimpan'; st.style.color = 'var(--green)'; }
+  localStorage.setItem('buku_suara_claude_proxy', proxy);
+  if (st) { st.textContent = '✓ Claude API key & Worker URL tersimpan'; st.style.color = 'var(--green)'; }
   showToast('Claude key tersimpan!');
 }
 function loadClaudeKey() {
-  const saved = localStorage.getItem(LS_CLAUDE_KEY);
-  if (saved) {
-    claudeApiKey = saved;
+  const savedKey = localStorage.getItem(LS_CLAUDE_KEY);
+  const savedProxy = localStorage.getItem('buku_suara_claude_proxy');
+  if (savedKey) {
+    claudeApiKey = savedKey;
     const inp = document.getElementById('claude-key-input');
-    if (inp) inp.value = saved;
+    if (inp) inp.value = savedKey;
+  }
+  if (savedProxy) {
+    CLAUDE_PROXY_URL = savedProxy;
+    const inp = document.getElementById('claude-proxy-input');
+    if (inp) inp.value = savedProxy;
+  }
+  if (savedKey && savedProxy) {
     const st = document.getElementById('claude-status');
-    if (st) { st.textContent = '✓ Claude API key aktif'; st.style.color = 'var(--green)'; }
+    if (st) { st.textContent = '✓ Claude API key & Worker aktif'; st.style.color = 'var(--green)'; }
   }
 }
 let selectedVoice = 'id-ID-Wavenet-A';
@@ -2051,17 +2073,16 @@ async function doCariArti() {
 
 async function askClaude(word) {
   const body = document.getElementById('def-bbody');
-  if (!claudeApiKey) {
-    if (body) body.innerHTML = '<div class="def-bload" style="color:var(--red)">Claude API key belum diset.<br><small>Tambahkan di halaman utama → Claude API Key</small></div>';
+  if (!claudeApiKey || !CLAUDE_PROXY_URL) {
+    if (body) body.innerHTML = '<div class="def-bload" style="color:var(--red)">Claude API belum diset.<br><small>Tambahkan API key & Worker URL di halaman utama</small></div>';
     return;
   }
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const resp = await fetch(CLAUDE_PROXY_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': claudeApiKey,
-        'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',

@@ -976,28 +976,6 @@ input[type=range]::-webkit-slider-thumb {
     </div>
   </div>
 
-  <!-- SELECTION BUBBLE — di luar reading-text biar gak kehapus saat render bab -->
-  <div class="sel-bubble" id="sel-bubble">
-    <button class="sel-btn" onclick="selBookmark()">🔖 Tandai</button>
-    <div class="sel-sep"></div>
-    <button class="sel-btn" onclick="selCariArti()">📖 Cari Arti</button>
-  </div>
-
-  <!-- DEFINISI BUBBLE -->
-  <div class="def-bubble" id="def-bubble">
-    <div class="def-bhead">
-      <div class="def-bword" id="def-bword"></div>
-      <button class="def-bclose" onclick="closeDefBubble()">✕</button>
-    </div>
-    <div class="def-bbody" id="def-bbody"><div class="def-bload">Mencari arti...</div></div>
-  </div>
-
-  <!-- BOOKMARK TOAST -->
-  <div class="bm-toast" id="bm-toast">🔖 Ditandai</div>
-
-  <!-- BOOKMARK BADGE -->
-  <div class="bm-badge" id="bm-badge">🔖 Posisi baca ditandai</div>
-
   <!-- EXPAND BUTTON — fixed top-right -->
   <button class="expand-btn" onclick="toggleExpand()" title="Perluas teks">
     <svg class="icon-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2417,6 +2395,28 @@ function resetBook() {
   showLibrary();
 }
 </script>
+
+<!-- BUBBLES: di akhir body, di atas semua stacking context -->
+<!-- SELECTION BUBBLE -->
+<div class="sel-bubble" id="sel-bubble">
+  <button class="sel-btn" onclick="selBookmark()">🔖 Tandai</button>
+  <div class="sel-sep"></div>
+  <button class="sel-btn" onclick="selCariArti()">📖 Cari Arti</button>
+</div>
+
+<!-- DEFINISI BUBBLE -->
+<div class="def-bubble" id="def-bubble">
+  <div class="def-bhead">
+    <div class="def-bword" id="def-bword"></div>
+    <button class="def-bclose" onclick="closeDefBubble()">✕</button>
+  </div>
+  <div class="def-bbody" id="def-bbody"><div class="def-bload">Mencari arti...</div></div>
+</div>
+
+<!-- BOOKMARK TOAST -->
+<div class="bm-toast" id="bm-toast">🔖 Ditandai</div>
+<!-- BOOKMARK BADGE -->
+<div class="bm-badge" id="bm-badge">🔖 Posisi baca ditandai</div>
 
 </body>
 </html>

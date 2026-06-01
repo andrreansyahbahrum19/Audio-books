@@ -329,6 +329,9 @@ body.night .bottom-player { box-shadow: 0 -4px 32px rgba(0,0,0,0.3); }
 }
 .controls-center { display: flex; align-items: center; gap: 2px; justify-content: center; }
 .controls-right { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.btn-mute { width: 30px; height: 30px; flex-shrink: 0; }
+.btn-mute svg { width: 15px; height: 15px; }
+.btn-mute.muted { color: var(--accent); border-color: var(--accent); }
 .controls-left { display: flex; align-items: center; gap: 6px; justify-content: flex-start; }
 
 .btn-ctrl {
@@ -773,7 +776,19 @@ input[type=range]::-webkit-slider-thumb {
       </div>
     </div>
     <div class="top-bar-right">
-      <button class="btn-icon" id="text-btn" onclick="toggleTextBar()" title="Pengaturan teks" style="font-family:'Lora',serif;font-weight:600;font-size:0.95rem;">Aa</button>
+      <button class="btn-icon btn-icon-aa" id="text-btn" onclick="toggleTextBar()" title="Pengaturan teks" style="font-family:'Lora',serif;font-weight:600;font-size:0.95rem;">Aa</button>
+      <button class="btn-icon btn-mute" id="btn-mute" onclick="toggleMute()" title="Mute/Unmute">
+        <svg id="icon-vol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+        </svg>
+        <svg id="icon-mute" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          <line x1="23" y1="9" x2="17" y2="15"/>
+          <line x1="17" y1="9" x2="23" y2="15"/>
+        </svg>
+      </button>
       <button class="btn-icon" id="night-btn" onclick="toggleNight()" title="Night mode">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
@@ -945,6 +960,17 @@ let pitchVal = 0;
 let chapters = [];
 let currentChapter = -1;
 let currentSentence = 0;
+let isMuted = false;
+
+// ── MUTE ──
+function toggleMute() {
+  isMuted = !isMuted;
+  const btn = document.getElementById('btn-mute');
+  document.getElementById('icon-vol').style.display  = isMuted ? 'none'  : '';
+  document.getElementById('icon-mute').style.display = isMuted ? ''      : 'none';
+  btn.classList.toggle('muted', isMuted);
+  if (currentAudio) currentAudio.muted = isMuted;
+}
 let isPlaying = false;
 let currentAudio = null;
 const audioCache = {};
@@ -1521,6 +1547,7 @@ function killCurrentAudio() {
     try { old.remove(); } catch(e) {}
   }
   currentAudio = configureAudioEl(document.createElement('audio'));
+  currentAudio.muted = isMuted;
   document.body.appendChild(currentAudio);
 }
 
@@ -1556,8 +1583,15 @@ async function playSentence(idx, session) {
     return;
   }
 
-  currentSentence = idx; updateProgress(); renderTextPanel(idx);
-  if (idx % 5 === 0) saveProgress(); // save reading progress tiap 5 sentence
+  currentSentence = idx; updateProgress();
+  // Lightweight update saat playback (geser highlight+scroll, tanpa rebuild DOM)
+  // Full render hanya saat idx===0 (awal bab) atau DOM belum ada
+  if (idx === 0 || !document.getElementById(`s-${idx}`)) {
+    renderTextPanel(idx);
+  } else {
+    updateActiveSentence(idx);
+  }
+  if (idx % 5 === 0) saveProgress();
   setStatus('', 'fetching'); setPlayState('loading');
 
   let url;
@@ -1637,6 +1671,7 @@ function prevChapter() { if (currentChapter > 0) { stopAudio(); loadChapter(curr
 function nextChapter() { if (currentChapter < chapters.length - 1) { stopAudio(); loadChapter(currentChapter + 1); playFrom(0); } }
 
 // ── RENDER ──
+// Full render: dipanggil saat ganti bab atau pertama load
 function renderTextPanel(activeIdx = currentSentence) {
   const panel = document.getElementById('reading-text');
   if (currentChapter < 0 || !chapters[currentChapter]) {
@@ -1651,12 +1686,9 @@ function renderTextPanel(activeIdx = currentSentence) {
     if (i === activeIdx) cls += ' active';
     return `<span class="${cls}" id="s-${i}">${escHtml(s)} </span>`;
   };
-
-  // Fallback: metadata gak ada / gak sinkron → render flat (perilaku lama, tetap aman)
   if (!meta || meta.length !== sents.length) {
     panel.innerHTML = sents.map(spanFor).join('');
   } else {
-    // Block-aware: group jadi <p class="reader-para"> & <h2 class="reader-head">
     let html = '', openPara = false;
     sents.forEach((s, i) => {
       const m = meta[i];
@@ -1673,13 +1705,35 @@ function renderTextPanel(activeIdx = currentSentence) {
     if (openPara) html += '</p>';
     panel.innerHTML = html;
   }
+  scrollToSentence(activeIdx);
+}
 
-  if (activeIdx >= 0) {
-    setTimeout(() => {
-      const el = document.getElementById(`s-${activeIdx}`);
-      if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    }, 50);
+// Lightweight update: hanya geser highlight + scroll, tanpa rebuild DOM
+// Dipanggil setiap kalimat saat playback berjalan
+function updateActiveSentence(idx) {
+  const prev = document.querySelector('.sentence-wrap.active');
+  if (prev) {
+    prev.classList.remove('active');
+    prev.classList.add('past');
   }
+  const el = document.getElementById(`s-${idx}`);
+  if (el) el.classList.add('active');
+  scrollToSentence(idx);
+}
+
+// Scroll container ke kalimat aktif — manual, reliable di Android WebView kecil
+function scrollToSentence(idx) {
+  if (idx < 0) return;
+  setTimeout(() => {
+    const el = document.getElementById(`s-${idx}`);
+    const container = document.getElementById('reading-area');
+    if (!el || !container) return;
+    const elRect = el.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const offset = elRect.top - containerRect.top + container.scrollTop;
+    const center = offset - (container.clientHeight / 2) + (elRect.height / 2);
+    container.scrollTo({ top: Math.max(0, center), behavior: 'smooth' });
+  }, 80);
 }
 
 function updateProgress() {

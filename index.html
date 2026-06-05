@@ -1811,14 +1811,16 @@ function killCurrentAudio() {
   playbackSession++;
   if (currentAudio) {
     const old = currentAudio;
-    old.onended = null; old.onerror = null;
+    old.onended = null; old.onerror = null; old.onpause = null;
     try { old.pause(); } catch(e) {}
     try { old.removeAttribute('src'); old.load(); } catch(e) {}
-    try { old.remove(); } catch(e) {}
+    // Jangan remove dari DOM — recycle element yang sama
+  } else {
+    // Buat sekali, pakai terus
+    currentAudio = configureAudioEl(document.createElement('audio'));
+    currentAudio.muted = isMuted;
+    document.body.appendChild(currentAudio);
   }
-  currentAudio = configureAudioEl(document.createElement('audio'));
-  currentAudio.muted = isMuted;
-  document.body.appendChild(currentAudio);
 }
 
 async function playFrom(idx) {
@@ -1852,6 +1854,7 @@ async function playSentence(idx, session) {
     } else {
       isPlaying = false; setPlayState('idle'); setStatus('Selesai dibaca 🎉');
       renderTextPanel(-1); updateMediaSessionState(false); releaseWakeLock();
+      stopSilentKeepAlive();
     }
     return;
   }
@@ -1863,12 +1866,12 @@ async function playSentence(idx, session) {
   } else {
     updateActiveSentence(idx);
   }
-  // Save tiap kalimat ke localStorage (Supabase tiap 3 kalimat biar gak spam)
   const bmKey = `bm_auto_${window._currentBookMeta?.id || 'local'}`;
   localStorage.setItem(bmKey, JSON.stringify({ chapter: currentChapter, sentence: idx, ts: Date.now() }));
   if (idx % 3 === 0) saveProgress();
   setStatus('', 'fetching'); setPlayState('loading');
 
+  // Fetch URL untuk kalimat ini
   let url;
   try { url = await fetchAudio(currentChapter, idx); }
   catch(e) {
@@ -1878,40 +1881,47 @@ async function playSentence(idx, session) {
 
   if (session !== playbackSession || !isPlaying) return;
 
-  // Pre-fetch + pre-decode next 2 sentences (gapless prep)
+  // Pre-fetch 3 kalimat ke depan (background, non-blocking)
   prefetchNext(currentChapter, idx + 1);
   prefetchNext(currentChapter, idx + 2);
+  prefetchNext(currentChapter, idx + 3);
 
+  // Pakai audio element yang SAMA — cukup ganti src
+  // Ini yang penting: Chrome gak anggap audio "selesai" kalau element-nya persist
   const el = currentAudio;
   el.src = url;
   el.load();
 
-  // iOS Safari: set muted dulu, play, lalu unmute — trick supaya autoplay izin dapet
-  el.muted = true;
-  try { await el.play(); } catch(e) {}
-  el.muted = isMuted;
-
   el.onended = () => {
-    if (session === playbackSession && isPlaying && el === currentAudio) playSentence(idx + 1, session);
+    if (session === playbackSession && isPlaying && el === currentAudio) {
+      // Langsung trigger kalimat berikutnya — no gap
+      playSentence(idx + 1, session);
+    }
   };
   el.onerror = () => {
     if (session === playbackSession && isPlaying && el === currentAudio) {
       setStatus('Error audio', 'err'); isPlaying = false; setPlayState('idle');
     }
   };
-  // Guard: kalau di background dan el pause tiba-tiba (OS interrupt), auto-resume
-  el.addEventListener('pause', function onPause() {
+
+  // Auto-resume kalau di-pause OS (Flip fold, interrupt)
+  el.onpause = () => {
     if (session !== playbackSession || !isPlaying || el !== currentAudio || el.ended) return;
-    // Jeda singkat lalu resume — handle OS audio interrupt
     setTimeout(() => {
       if (session === playbackSession && isPlaying && el === currentAudio && el.paused && !el.ended) {
         el.play().catch(()=>{});
       }
-    }, 600);
-  }, { once: false });
+    }, 500);
+  };
+
+  try { await el.play(); }
+  catch(e) {
+    // Autoplay blocked — tunggu visibilitychange untuk resume
+    return;
+  }
 
   if (el !== currentAudio || session !== playbackSession || !isPlaying) {
-    try { el.pause(); el.removeAttribute('src'); el.load(); } catch(e) {}
+    try { el.pause(); } catch(e) {}
     return;
   }
   setPlayState('play'); setStatus('', 'speaking'); updateMediaSessionState(true);

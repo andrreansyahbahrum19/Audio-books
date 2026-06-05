@@ -13,6 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Audio Books">
+<meta name="mobile-web-app-capable" content="yes">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
@@ -1248,19 +1249,92 @@ async function requestWakeLock() {
 async function releaseWakeLock() {
   if (wakeLock) { try { await wakeLock.release(); } catch(e) {} wakeLock = null; }
 }
+
+// ── SILENT AUDIO KEEPALIVE ──
+// Loop audio senyap 1 detik → kasih sinyal ke Android/iOS "tab ini masih active audio"
+// Ini yang cegah Chrome Android suspend tab saat Flip dilipet
+let _silentAudio = null;
+function startSilentKeepAlive() {
+  if (_silentAudio) return;
+  // 1 detik MP3 senyap (base64) — ukurannya ~1KB
+  const SILENT_MP3 = 'data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaWdTb3VuZEJhbmsuY29tIC8gTGFTb25vdGhlcXVlLm9yZwBURU5DAAAAHQAAA1N3aXRjaCBQbHVzACBQcm9kdWNlcgBUSVQyAAAABgAAAzIyMzUAVFNTRQAAAA8AAANMYXZmNTcuODMuMTAwAAAAAAAAAAAAAAD/80DEAAAAA0gAAAAATEFNRTMuMTAwVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQsRbAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQMSkAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
+  _silentAudio = new Audio(SILENT_MP3);
+  _silentAudio.loop = true;
+  _silentAudio.volume = 0.001; // hampir 0 tapi gak persis 0 — beberapa browser skip kalau persis 0
+  _silentAudio.setAttribute('playsinline', '');
+  _silentAudio.play().catch(() => {});
+}
+function stopSilentKeepAlive() {
+  if (_silentAudio) {
+    try { _silentAudio.pause(); } catch(e) {}
+    _silentAudio = null;
+  }
+}
+
+// ── VISIBILITY + FOLD HANDLER ──
 document.addEventListener('visibilitychange', async () => {
-  if (document.visibilityState === 'visible' && isPlaying) {
-    await requestWakeLock();
-    if (currentAudio && currentAudio.paused && isPlaying) { try { await currentAudio.play(); } catch(e) {} }
+  if (document.visibilityState === 'visible') {
+    // Resume AudioContext
+    try { if (_audioCtx && _audioCtx.state === 'suspended') await _audioCtx.resume(); } catch(e) {}
+
+    if (isPlaying) {
+      await requestWakeLock();
+      // Resume silent keepalive kalau ke-kill
+      if (_silentAudio && _silentAudio.paused) _silentAudio.play().catch(()=>{});
+
+      if (currentAudio && currentAudio.paused && !currentAudio.ended) {
+        try { await currentAudio.play(); } catch(e) {}
+      }
+      // Audio ended di background (mati saat lipet) → lanjut dari posisi terakhir
+      if (!currentAudio || currentAudio.ended) {
+        playSentence(currentSentence, playbackSession);
+      }
+    }
+  } else {
+    // Tab ke background / layar dilipet → pastiin silent keepalive jalan
+    if (isPlaying) startSilentKeepAlive();
+  }
+});
+
+// ── SAVE ON EXIT ──
+// Force-save posisi saat tab/browser mau ditutup atau Flip dilipet agresif
+window.addEventListener('pagehide', () => {
+  if (currentChapter >= 0) {
+    // Sync save ke localStorage (Supabase async, gak bisa di pagehide)
+    const meta = window._currentBookMeta;
+    const bmKey = `bm_auto_${meta?.id || 'local'}`;
+    localStorage.setItem(bmKey, JSON.stringify({
+      chapter: currentChapter, sentence: currentSentence, ts: Date.now()
+    }));
+  }
+});
+window.addEventListener('beforeunload', () => {
+  if (currentChapter >= 0) {
+    const meta = window._currentBookMeta;
+    const bmKey = `bm_auto_${meta?.id || 'local'}`;
+    localStorage.setItem(bmKey, JSON.stringify({
+      chapter: currentChapter, sentence: currentSentence, ts: Date.now()
+    }));
   }
 });
 
 // ── MEDIA SESSION ──
 function setupMediaSession() {
   if (!('mediaSession' in navigator)) return;
-  navigator.mediaSession.metadata = new MediaMetadata({ title: bookTitle || 'Audio Book', artist: 'Bahrum Creative Tools', album: chapters[currentChapter]?.title || '' });
+  // Artwork dari logo app — iOS butuh ini buat tampil di lock screen
+  const artwork = [
+    { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+    { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
+  ];
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: chapters[currentChapter]?.title || bookTitle || 'Audio Book',
+    artist: bookTitle || 'Audio Books',
+    album: 'Bahrum Creative Tools',
+    artwork
+  });
   navigator.mediaSession.setActionHandler('play', () => { if (!isPlaying) togglePlay(); });
   navigator.mediaSession.setActionHandler('pause', () => { if (isPlaying) togglePlay(); });
+  navigator.mediaSession.setActionHandler('stop', () => { stopAudio(); });
   navigator.mediaSession.setActionHandler('previoustrack', () => rewindSentence());
   navigator.mediaSession.setActionHandler('nexttrack', () => forwardSentence());
   navigator.mediaSession.setActionHandler('seekbackward', () => rewindSentence());
@@ -1269,7 +1343,10 @@ function setupMediaSession() {
 function updateMediaSessionState(playing) {
   if (!('mediaSession' in navigator)) return;
   navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
-  if (navigator.mediaSession.metadata) { navigator.mediaSession.metadata.album = chapters[currentChapter]?.title || ''; }
+  // Update title tiap kalimat ganti supaya lock screen tetap sync
+  if (navigator.mediaSession.metadata) {
+    navigator.mediaSession.metadata.title = chapters[currentChapter]?.title || bookTitle || 'Audio Book';
+  }
 }
 
 // ── API ──
@@ -1697,21 +1774,36 @@ async function fetchAudio(chIdx, sIdx) {
   audioCache[cacheKey] = url; return url;
 }
 
-// ── PLAYBACK ──
-// ── PLAYBACK ENGINE (fixed: session guard + element swap) ──
+// ── PLAYBACK ENGINE — Background-safe, gapless, iOS+Android ──
 let playbackSession = 0;
+let _audioCtx = null;
+
+// Lazy-init AudioContext dari user gesture — required by iOS
+function getAudioContext() {
+  if (!_audioCtx || _audioCtx.state === 'closed') {
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (_audioCtx.state === 'suspended') _audioCtx.resume().catch(()=>{});
+  return _audioCtx;
+}
+
+// Decode blob URL ke AudioBuffer (untuk prefetch & gapless)
+const decodedCache = {}; // cacheKey -> AudioBuffer
+
+async function decodeAudioUrl(url, cacheKey) {
+  if (decodedCache[cacheKey]) return decodedCache[cacheKey];
+  const ctx = getAudioContext();
+  const res = await fetch(url);
+  const ab = await res.arrayBuffer();
+  const buf = await ctx.decodeAudioData(ab);
+  decodedCache[cacheKey] = buf;
+  return buf;
+}
 
 function configureAudioEl(el) {
   el.setAttribute('playsinline', '');
   el.setAttribute('x-webkit-airplay', 'allow');
   el.preload = 'auto';
-  el.addEventListener('pause', () => {
-    if (isPlaying && el === currentAudio && document.visibilityState !== 'visible') {
-      setTimeout(() => {
-        if (isPlaying && el === currentAudio && el.paused && !el.ended) el.play().catch(()=>{});
-      }, 400);
-    }
-  });
   return el;
 }
 
@@ -1731,6 +1823,8 @@ function killCurrentAudio() {
 
 async function playFrom(idx) {
   if (currentChapter < 0) return;
+  // Resume AudioContext dari user gesture
+  try { getAudioContext(); } catch(e) {}
   killCurrentAudio();
   currentSentence = idx;
   renderTextPanel(idx); updateProgress();
@@ -1739,6 +1833,7 @@ async function playFrom(idx) {
   setPlayState('loading');
   setupMediaSession(); updateMediaSessionState(true);
   requestWakeLock();
+  startSilentKeepAlive();
   await playSentence(idx, session);
 }
 
@@ -1763,14 +1858,15 @@ async function playSentence(idx, session) {
 
   currentSentence = idx; updateProgress();
   autoBookmark(currentChapter, idx);
-  // Lightweight update saat playback (geser highlight+scroll, tanpa rebuild DOM)
-  // Full render hanya saat idx===0 (awal bab) atau DOM belum ada
   if (idx === 0 || !document.getElementById(`s-${idx}`)) {
     renderTextPanel(idx);
   } else {
     updateActiveSentence(idx);
   }
-  if (idx % 5 === 0) saveProgress();
+  // Save tiap kalimat ke localStorage (Supabase tiap 3 kalimat biar gak spam)
+  const bmKey = `bm_auto_${window._currentBookMeta?.id || 'local'}`;
+  localStorage.setItem(bmKey, JSON.stringify({ chapter: currentChapter, sentence: idx, ts: Date.now() }));
+  if (idx % 3 === 0) saveProgress();
   setStatus('', 'fetching'); setPlayState('loading');
 
   let url;
@@ -1781,11 +1877,20 @@ async function playSentence(idx, session) {
   }
 
   if (session !== playbackSession || !isPlaying) return;
+
+  // Pre-fetch + pre-decode next 2 sentences (gapless prep)
   prefetchNext(currentChapter, idx + 1);
+  prefetchNext(currentChapter, idx + 2);
 
   const el = currentAudio;
   el.src = url;
   el.load();
+
+  // iOS Safari: set muted dulu, play, lalu unmute — trick supaya autoplay izin dapet
+  el.muted = true;
+  try { await el.play(); } catch(e) {}
+  el.muted = isMuted;
+
   el.onended = () => {
     if (session === playbackSession && isPlaying && el === currentAudio) playSentence(idx + 1, session);
   };
@@ -1794,9 +1899,16 @@ async function playSentence(idx, session) {
       setStatus('Error audio', 'err'); isPlaying = false; setPlayState('idle');
     }
   };
-
-  try { await el.play(); }
-  catch(e) { return; }
+  // Guard: kalau di background dan el pause tiba-tiba (OS interrupt), auto-resume
+  el.addEventListener('pause', function onPause() {
+    if (session !== playbackSession || !isPlaying || el !== currentAudio || el.ended) return;
+    // Jeda singkat lalu resume — handle OS audio interrupt
+    setTimeout(() => {
+      if (session === playbackSession && isPlaying && el === currentAudio && el.paused && !el.ended) {
+        el.play().catch(()=>{});
+      }
+    }, 600);
+  }, { once: false });
 
   if (el !== currentAudio || session !== playbackSession || !isPlaying) {
     try { el.pause(); el.removeAttribute('src'); el.load(); } catch(e) {}
@@ -1836,6 +1948,7 @@ function togglePlay() {
 function stopAudio() {
   isPlaying = false;
   killCurrentAudio();
+  stopSilentKeepAlive();
   setPlayState('idle'); updateMediaSessionState(false); releaseWakeLock();
 }
 
@@ -2403,26 +2516,41 @@ async function openBook(bookId) {
 async function loadEpubFromLibrary(file, bookMeta) {
   window._currentBookMeta = bookMeta;
 
-  // Fetch fresh progress — Supabase dulu, fallback localStorage
+  // Prioritas resume: bm_auto (tiap kalimat) → Supabase → bm_ manual → dari awal
   let resumeCh = 0, resumeSent = 0;
+
+  // 1. Cek bm_auto dulu — ini yang paling fresh (update tiap kalimat)
   try {
-    const { data } = await supa.from('books').select('current_chapter, current_sentence').eq('id', bookMeta.id).single();
-    if (data && (data.current_chapter > 0 || data.current_sentence > 0)) {
-      resumeCh = data.current_chapter || 0;
-      resumeSent = data.current_sentence || 0;
-    } else {
-      // Fallback localStorage
-      const lsBm = localStorage.getItem(`bm_${bookMeta.id}`);
-      if (lsBm) { const bm = JSON.parse(lsBm); resumeCh = bm.chapter || 0; resumeSent = bm.sentence || 0; }
+    const autoKey = `bm_auto_${bookMeta.id}`;
+    const autoRaw = localStorage.getItem(autoKey);
+    if (autoRaw) {
+      const auto = JSON.parse(autoRaw);
+      if (auto.chapter >= 0 && auto.sentence >= 0) {
+        resumeCh = auto.chapter;
+        resumeSent = auto.sentence;
+      }
     }
-  } catch(e) {
-    resumeCh = bookMeta.current_chapter || 0;
-    resumeSent = bookMeta.current_sentence || 0;
-    // Coba localStorage
+  } catch(e) {}
+
+  // 2. Kalau bm_auto kosong, fallback ke Supabase
+  if (resumeCh === 0 && resumeSent === 0) {
     try {
-      const lsBm = localStorage.getItem(`bm_${bookMeta.id}`);
-      if (lsBm) { const bm = JSON.parse(lsBm); resumeCh = bm.chapter || 0; resumeSent = bm.sentence || 0; }
-    } catch(e2) {}
+      const { data } = await supa.from('books').select('current_chapter, current_sentence').eq('id', bookMeta.id).single();
+      if (data && (data.current_chapter > 0 || data.current_sentence > 0)) {
+        resumeCh = data.current_chapter || 0;
+        resumeSent = data.current_sentence || 0;
+      } else {
+        const lsBm = localStorage.getItem(`bm_${bookMeta.id}`);
+        if (lsBm) { const bm = JSON.parse(lsBm); resumeCh = bm.chapter || 0; resumeSent = bm.sentence || 0; }
+      }
+    } catch(e) {
+      resumeCh = bookMeta.current_chapter || 0;
+      resumeSent = bookMeta.current_sentence || 0;
+      try {
+        const lsBm = localStorage.getItem(`bm_${bookMeta.id}`);
+        if (lsBm) { const bm = JSON.parse(lsBm); resumeCh = bm.chapter || 0; resumeSent = bm.sentence || 0; }
+      } catch(e2) {}
+    }
   }
 
   const ok = await loadEpub(file);
@@ -2434,7 +2562,6 @@ async function loadEpubFromLibrary(file, bookMeta) {
     currentSentence = resumeSent;
     renderTextPanel(resumeSent);
     updateProgress();
-    // Highlight bookmark + scroll ke posisi
     setTimeout(() => {
       const el = document.getElementById(`s-${resumeSent}`);
       const container = document.getElementById('reading-area');

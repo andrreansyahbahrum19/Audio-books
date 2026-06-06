@@ -1436,8 +1436,14 @@ function setupMediaSession() {
   navigator.mediaSession.setActionHandler('stop', () => { stopAudio(); });
   navigator.mediaSession.setActionHandler('previoustrack', () => rewindSentence());
   navigator.mediaSession.setActionHandler('nexttrack', () => forwardSentence());
-  navigator.mediaSession.setActionHandler('seekbackward', () => rewindSentence());
-  navigator.mediaSession.setActionHandler('seekforward', () => forwardSentence());
+  navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+    // Double tap headset back = rewind sentence
+    rewindSentence();
+  });
+  navigator.mediaSession.setActionHandler('seekforward', (details) => {
+    // Double tap headset forward = next sentence
+    forwardSentence();
+  });
 }
 function updateMediaSessionState(playing) {
   if (!('mediaSession' in navigator)) return;
@@ -2498,6 +2504,8 @@ async function tryResumeLastSession() {
     } else {
       // Tadi pause — buka reader tapi tidak auto-play
       document.getElementById('library-screen').style.display = 'none';
+      document.getElementById('library-screen').classList.remove('has-mini');
+      document.getElementById('mini-player').classList.remove('show');
       document.getElementById('reader-screen').style.display = 'flex';
       showToast(`📖 Lanjut dari bab ${ch + 1}, kal. ${sent + 1}`);
     }
@@ -2570,6 +2578,8 @@ function updateMiniPlayer() {
 function returnToReader() {
   if (currentChapter < 0) return;
   document.getElementById('library-screen').style.display = 'none';
+  document.getElementById('library-screen').classList.remove('has-mini');
+  document.getElementById('mini-player').classList.remove('show');
   document.getElementById('reader-screen').style.display = 'flex';
 }
 
@@ -2773,6 +2783,8 @@ async function openBook(bookId) {
     const ab = await res.arrayBuffer();
     const file = new File([ab], book.title + '.epub', { type: 'application/epub+zip' });
     document.getElementById('library-screen').style.display = 'none';
+    document.getElementById('library-screen').classList.remove('has-mini');
+    document.getElementById('mini-player').classList.remove('show');
     await loadEpubFromLibrary(file, book);
   } catch(e) {
     showToast('Gagal memuat: ' + e.message);

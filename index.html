@@ -1271,30 +1271,59 @@ function stopSilentKeepAlive() {
   }
 }
 
-// ── VISIBILITY + FOLD HANDLER ──
+// ── AUDIO INTERRUPT HANDLER ──
+// Handle saat app lain (Instagram video, YouTube, telepon) ambil audio focus
+// Saat mereka selesai → audio books auto-resume
+let _interruptedByOtherApp = false;
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible') {
-    // Resume AudioContext
     try { if (_audioCtx && _audioCtx.state === 'suspended') await _audioCtx.resume(); } catch(e) {}
-
     if (isPlaying) {
       await requestWakeLock();
-      // Resume silent keepalive kalau ke-kill
       if (_silentAudio && _silentAudio.paused) _silentAudio.play().catch(()=>{});
-
-      if (currentAudio && currentAudio.paused && !currentAudio.ended) {
-        try { await currentAudio.play(); } catch(e) {}
-      }
-      // Audio ended di background (mati saat lipet) → lanjut dari posisi terakhir
       if (!currentAudio || currentAudio.ended) {
+        // Mati di background → restart dari posisi terakhir
         playSentence(currentSentence, playbackSession);
+      } else if (currentAudio.paused) {
+        try { await currentAudio.play(); } catch(e) {}
       }
     }
   } else {
-    // Tab ke background / layar dilipet → pastiin silent keepalive jalan
     if (isPlaying) startSilentKeepAlive();
   }
 });
+
+// MediaSession "audiofocuschange" — saat app lain interrupt audio (telepon, IG video)
+// Chrome Android support ini via MediaSession
+if ('mediaSession' in navigator) {
+  // Detect audio being taken by another app via pause + visibilityState hidden
+  // Auto-resume saat balik foreground sudah dihandle di visibilitychange di atas
+}
+
+// Fallback: monitor currentAudio pause di background
+// Jika pause bukan karena user → flag sebagai interrupted → resume saat visible
+function _setupInterruptRecovery(el, session) {
+  let _wasPlayingBeforeInterrupt = false;
+  el.addEventListener('pause', () => {
+    if (session !== playbackSession || el !== currentAudio || el.ended) return;
+    if (!isPlaying) return; // user yang pause, bukan interrupt
+    _wasPlayingBeforeInterrupt = true;
+    // Auto-resume cepat (handle kasus notif/IG reel yang sebentar)
+    setTimeout(() => {
+      if (session === playbackSession && isPlaying && el === currentAudio && el.paused && !el.ended && _wasPlayingBeforeInterrupt) {
+        el.play().catch(() => {
+          // Kalau masih blocked (IG video lagi jalan) → retry lebih lama
+          setTimeout(() => {
+            if (session === playbackSession && isPlaying && el === currentAudio && el.paused && !el.ended) {
+              el.play().catch(()=>{});
+            }
+          }, 2000);
+        });
+      }
+    }, 800);
+  });
+  el.addEventListener('play', () => { _wasPlayingBeforeInterrupt = false; });
+}
 
 // ── SAVE ON EXIT ──
 // Force-save posisi saat tab/browser mau ditutup atau Flip dilipet agresif
@@ -1868,6 +1897,15 @@ async function playSentence(idx, session) {
   }
   const bmKey = `bm_auto_${window._currentBookMeta?.id || 'local'}`;
   localStorage.setItem(bmKey, JSON.stringify({ chapter: currentChapter, sentence: idx, ts: Date.now() }));
+  // Simpan juga sebagai last session — buat auto-resume saat app reload
+  if (window._currentBookMeta?.id) {
+    localStorage.setItem('ab_last_session', JSON.stringify({
+      bookId: window._currentBookMeta.id,
+      chapter: currentChapter,
+      sentence: idx,
+      ts: Date.now()
+    }));
+  }
   if (idx % 3 === 0) saveProgress();
   setStatus('', 'fetching'); setPlayState('loading');
 
@@ -1894,7 +1932,6 @@ async function playSentence(idx, session) {
 
   el.onended = () => {
     if (session === playbackSession && isPlaying && el === currentAudio) {
-      // Langsung trigger kalimat berikutnya — no gap
       playSentence(idx + 1, session);
     }
   };
@@ -1904,15 +1941,9 @@ async function playSentence(idx, session) {
     }
   };
 
-  // Auto-resume kalau di-pause OS (Flip fold, interrupt)
-  el.onpause = () => {
-    if (session !== playbackSession || !isPlaying || el !== currentAudio || el.ended) return;
-    setTimeout(() => {
-      if (session === playbackSession && isPlaying && el === currentAudio && el.paused && !el.ended) {
-        el.play().catch(()=>{});
-      }
-    }, 500);
-  };
+  // Auto-resume kalau di-pause OS (Flip fold, interrupt dari app lain)
+  el.onpause = null; // reset dulu biar gak double
+  _setupInterruptRecovery(el, session);
 
   try { await el.play(); }
   catch(e) {
@@ -2331,8 +2362,79 @@ async function initApp() {
   const st = document.getElementById('claude-status');
   if (st && savedClaude) { st.textContent = '✓ Claude API key aktif'; st.style.color = 'var(--green)'; }
 
-  // Always show library first
-  showLibrary();
+  // Always show library first — tapi cek dulu apakah ada session aktif yang mesti di-resume
+  await tryResumeLastSession();
+}
+
+// ── AUTO-RESUME LAST SESSION ──
+// Saat app reload (tab di-discard, buka dari home screen), langsung buka buku + posisi terakhir
+async function tryResumeLastSession() {
+  try {
+    const raw = localStorage.getItem('ab_last_session');
+    if (!raw) { showLibrary(); return; }
+    const session = JSON.parse(raw);
+    // Jangan auto-resume kalau session-nya udah lebih dari 24 jam
+    if (!session.bookId || Date.now() - session.ts > 86400000) { showLibrary(); return; }
+
+    // Load library dulu buat dapet metadata buku
+    const { data: books } = await supa.from('books').select('*').eq('id', session.bookId).single();
+    if (!books) { showLibrary(); return; }
+
+    // Langsung buka buku tanpa ke library screen dulu
+    showToast('▶ Melanjutkan sesi terakhir...');
+    libraryBooks = [books];
+    const res = await fetch(books.epub_url);
+    const ab = await res.arrayBuffer();
+    const file = new File([ab], books.title + '.epub', { type: 'application/epub+zip' });
+    window._currentBookMeta = books;
+    window._autoPlay = true; // flag buat auto-play setelah load
+
+    const ok = await loadEpub(file);
+    if (!ok) { showLibrary(); return; }
+
+    // Jump ke posisi terakhir
+    const ch = session.chapter || 0;
+    const sent = session.sentence || 0;
+    loadChapter(ch);
+    currentSentence = sent;
+    renderTextPanel(sent);
+    updateProgress();
+    setTimeout(() => {
+      const el = document.getElementById(`s-${sent}`);
+      const container = document.getElementById('reading-area');
+      if (el && container) {
+        container.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop - container.clientHeight / 2), behavior: 'smooth' });
+      }
+    }, 400);
+
+    // Auto-play — butuh user gesture di beberapa device
+    // Kita tampil overlay "tap to continue" kalau autoplay blocked
+    if (window._autoPlay) {
+      try {
+        await playFrom(sent);
+        showToast(`📖 Lanjut bab ${ch + 1}, kal. ${sent + 1}`);
+      } catch(e) {
+        // Autoplay blocked — tampil tap-to-play overlay
+        showTapToContinue(ch, sent);
+      }
+    }
+  } catch(e) {
+    showLibrary();
+  }
+}
+
+function showTapToContinue(ch, sent) {
+  // Overlay ringan di atas reader — tap sekali langsung play
+  const overlay = document.createElement('div');
+  overlay.id = 'tap-resume-overlay';
+  overlay.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;`;
+  overlay.innerHTML = `<div style="background:var(--bg);border-radius:20px;padding:32px 28px;text-align:center;max-width:280px;">
+    <div style="font-size:2rem;margin-bottom:12px;">▶</div>
+    <div style="font-weight:600;margin-bottom:8px;color:var(--text)">Lanjut dengerin?</div>
+    <div style="font-size:13px;color:var(--text-soft);margin-bottom:20px;">Tap untuk lanjut dari kalimat terakhir</div>
+    <button onclick="document.getElementById('tap-resume-overlay').remove();playFrom(${sent});" style="background:var(--accent);color:#fff;border:none;border-radius:12px;padding:12px 28px;font-size:15px;font-weight:600;cursor:pointer;width:100%;">Lanjut</button>
+  </div>`;
+  document.body.appendChild(overlay);
 }
 
 function showSetup() {

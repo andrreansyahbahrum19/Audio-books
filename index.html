@@ -1183,8 +1183,8 @@ function toggleGeminiVis() {
 function saveGeminiKey() {
   const key = (document.getElementById('gemini-key-input')?.value || '').trim();
   const st = document.getElementById('gemini-status');
-  if (!key || !key.startsWith('AIza')) {
-    if (st) { st.textContent = '❌ Format key tidak valid (harus AIzaSy...)'; st.style.color = 'var(--red)'; }
+  if (!key || key.length < 8) {
+    if (st) { st.textContent = '❌ Key terlalu pendek — pastikan sudah dicopy lengkap'; st.style.color = 'var(--red)'; }
     return;
   }
   geminiApiKey = key;

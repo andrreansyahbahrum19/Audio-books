@@ -500,7 +500,7 @@ body.night .bottom-player { box-shadow: 0 -4px 32px rgba(0,0,0,0.3); }
   overflow: hidden; max-height: 0; transition: max-height 0.35s ease, opacity 0.3s ease;
   opacity: 0; background: var(--surface); border-bottom: 1px solid var(--border);
 }
-.text-bar.open { max-height: 240px; opacity: 1; padding: 14px 20px 16px; }
+.text-bar.open { max-height: 320px; opacity: 1; padding: 14px 20px 16px; }
 .fs-stepper { display: flex; align-items: center; gap: 8px; }
 .fs-btn {
   display: inline-flex; align-items: center; justify-content: center;
@@ -523,6 +523,16 @@ input[type=range]::-webkit-slider-thumb {
   background: var(--accent); cursor: pointer;
 }
 .range-val { font-size: 0.72rem; color: var(--ink-dim); min-width: 28px; text-align: right; flex-shrink: 0; }
+.narasi-select {
+  width: 100%; background: var(--bg-warm); border: 1px solid var(--border-strong);
+  color: var(--ink); font-family: 'DM Sans', sans-serif; font-size: 0.8rem;
+  padding: 7px 32px 7px 12px; border-radius: var(--radius-sm);
+  outline: none; cursor: pointer; appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238e8e8a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+  transition: border-color 0.2s;
+}
+.narasi-select:focus { border-color: var(--accent); }
 
 /* ── BOTTOM SHEET (Chapter list) ── */
 .sheet-overlay {
@@ -869,6 +879,20 @@ input[type=range]::-webkit-slider-thumb {
       <p class="field-hint">URL Cloudflare Worker lo (proxy Claude API). <a href="https://dash.cloudflare.com" target="_blank">Buat di Cloudflare →</a></p>
       <p class="field-status" id="claude-status"></p>
     </div>
+
+    <!-- Gemini API Key (untuk TTS) -->
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+      <p class="setup-card-title" style="font-size:.82rem;margin-bottom:8px">✦ Gemini API Key <span style="font-size:.7rem;color:var(--ink-muted);font-weight:400">(untuk TTS — Gemini 2.5 Flash)</span></p>
+      <div class="field-row">
+        <div class="field-wrap">
+          <input type="password" class="field-input" id="gemini-key-input" placeholder="AIzaSy..." autocomplete="off">
+          <button class="field-toggle" onclick="toggleGeminiVis()">👁</button>
+        </div>
+        <button class="btn-primary" id="btn-gemini" onclick="saveGeminiKey()">Simpan</button>
+      </div>
+      <p class="field-hint">Buat key di <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a>. Disimpan di browser, tidak dikirim ke server kami.</p>
+      <p class="field-status" id="gemini-status"></p>
+    </div>
   </div>
 
   <!-- CONNECTED BADGE — shows after API connected -->
@@ -979,12 +1003,23 @@ input[type=range]::-webkit-slider-thumb {
         <button class="chip" data-lh="2.3" onclick="setLineHeight(this)">Lega</button>
       </div>
     </div>
-    <div class="voice-row" style="margin-bottom:0;">
+    <div class="voice-row">
       <span class="voice-label">Perataan</span>
       <div class="chip-group" id="align-group">
         <button class="chip active" data-justify="0" onclick="setAlign(this)">Rata kiri</button>
         <button class="chip" data-justify="1" onclick="setAlign(this)">Rata penuh</button>
       </div>
+    </div>
+    <div class="voice-row" style="margin-bottom:0;">
+      <span class="voice-label">Gaya narasi</span>
+      <select class="narasi-select" id="narasi-select" onchange="setNarasi(this.value)">
+        <option value="">— Otomatis —</option>
+        <option value="formal">Formal</option>
+        <option value="santai">Santai</option>
+        <option value="dramatis">Dramatis</option>
+        <option value="energik">Energik</option>
+        <option value="lembut">Lembut</option>
+      </select>
     </div>
   </div>
 
@@ -1090,6 +1125,11 @@ let apiKey = 'AIzaSyCKIDWnykBO9fiEL3ebGM5nxCS_QAU-kwU';
 // Claude API key — diload dari localStorage, bukan hardcoded
 let claudeApiKey = localStorage.getItem('buku_suara_claude_key') || '';
 const LS_CLAUDE_KEY = 'buku_suara_claude_key';
+// Gemini API key — untuk TTS via Cloudflare Worker
+let geminiApiKey = localStorage.getItem('buku_suara_gemini_key') || '';
+const LS_GEMINI_KEY = 'buku_suara_gemini_key';
+// Gaya narasi — null = otomatis, atau 'formal'|'santai'|'dramatis'|'energik'|'lembut'
+let selectedNarasi = localStorage.getItem('ab_narasi') || '';
 // Ganti dengan Worker URL lo setelah deploy (contoh: https://claude-proxy.NAMALO.workers.dev)
 let CLAUDE_PROXY_URL = 'https://restless-bar-9a2d.andrreansyahbahrum.workers.dev';
 
@@ -1133,6 +1173,42 @@ function loadClaudeKey() {
     const st = document.getElementById('claude-status');
     if (st) { st.textContent = '✓ Claude API key & Worker aktif'; st.style.color = 'var(--green)'; }
   }
+}
+
+// ── GEMINI KEY ──
+function toggleGeminiVis() {
+  const inp = document.getElementById('gemini-key-input');
+  if (inp) inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+function saveGeminiKey() {
+  const key = (document.getElementById('gemini-key-input')?.value || '').trim();
+  const st = document.getElementById('gemini-status');
+  if (!key || !key.startsWith('AIza')) {
+    if (st) { st.textContent = '❌ Format key tidak valid (harus AIzaSy...)'; st.style.color = 'var(--red)'; }
+    return;
+  }
+  geminiApiKey = key;
+  localStorage.setItem(LS_GEMINI_KEY, key);
+  if (st) { st.textContent = '✓ Gemini key tersimpan — Gemini TTS siap'; st.style.color = 'var(--green)'; }
+  showToast('Gemini key tersimpan!');
+}
+function loadGeminiKey() {
+  const saved = localStorage.getItem(LS_GEMINI_KEY);
+  if (saved) {
+    geminiApiKey = saved;
+    const inp = document.getElementById('gemini-key-input');
+    if (inp) inp.value = saved;
+    const st = document.getElementById('gemini-status');
+    if (st) { st.textContent = '✓ Gemini key aktif'; st.style.color = 'var(--green)'; }
+  }
+}
+
+// ── GAYA NARASI ──
+function setNarasi(val) {
+  selectedNarasi = val;
+  localStorage.setItem('ab_narasi', val);
+  // Clear Gemini audio cache saat narasi berubah supaya kalimat di-regen ulang
+  Object.keys(audioCache).forEach(k => { if (k.startsWith('g-')) delete audioCache[k]; });
 }
 let selectedVoice = 'id-ID-Wavenet-A';
 let selectedGender = 'FEMALE';
@@ -1783,18 +1859,47 @@ async function fetchAudioRaw(textOrInput) {
   return bytes.buffer;
 }
 async function fetchAudio(chIdx, sIdx) {
-  const cacheKey = `${chIdx}-${sIdx}-${selectedVoice}-${speechRate}-${pitchVal}`;
-  if (audioCache[cacheKey]) return audioCache[cacheKey];
   const ch = chapters[chIdx];
   const text = ch?.sentences[sIdx]; if (!text) return null;
   const meta = ch.segMeta?.[sIdx];
-  // Playback pakai SSML kalau ada metadata (intonasi paragraf + heading)
+
+  // ── Gemini path (via Worker) ──
+  if (geminiApiKey) {
+    const cacheKey = `g-${chIdx}-${sIdx}-${selectedVoice}-${selectedNarasi}`;
+    if (audioCache[cacheKey]) return audioCache[cacheKey];
+    const workerUrl = `${CLAUDE_PROXY_URL}/tts`;
+    const body = {
+      text,
+      voice: 'Kore', // default Gemini voice; bisa dikembangin ke chip selector nanti
+      style: selectedNarasi || null,
+      cacheKey: `${chIdx}_${sIdx}_${selectedNarasi}`
+    };
+    let res;
+    try {
+      res = await fetch(workerUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Gemini-Key': geminiApiKey },
+        body: JSON.stringify(body)
+      });
+    } catch(e) { throw new Error('Worker tidak bisa dijangkau: ' + e.message); }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Worker error' }));
+      throw new Error(err.error || 'Gemini TTS error');
+    }
+    const data = await res.json();
+    if (!data.audioUrl) throw new Error('Worker tidak return audioUrl');
+    audioCache[cacheKey] = data.audioUrl;
+    return data.audioUrl;
+  }
+
+  // ── Google TTS fallback (existing path) ──
+  const cacheKey = `${chIdx}-${sIdx}-${selectedVoice}-${speechRate}-${pitchVal}`;
+  if (audioCache[cacheKey]) return audioCache[cacheKey];
   const ttsInput = meta ? buildInputSSML(text, meta) : { text };
   let raw;
   try {
     raw = await fetchAudioRaw(ttsInput);
   } catch(e) {
-    // Fallback: kalau SSML gagal (mis. voice gak support), coba plain text
     if (ttsInput.ssml) { raw = await fetchAudioRaw({ text }); }
     else throw e;
   }
@@ -2361,6 +2466,15 @@ async function initApp() {
   if (proxyInp) proxyInp.value = savedProxy;
   const st = document.getElementById('claude-status');
   if (st && savedClaude) { st.textContent = '✓ Claude API key aktif'; st.style.color = 'var(--green)'; }
+
+  // Load Gemini key dari localStorage
+  loadGeminiKey();
+
+  // Restore Gaya Narasi pilihan terakhir
+  const savedNarasi = localStorage.getItem('ab_narasi') || '';
+  selectedNarasi = savedNarasi;
+  const narasiSel = document.getElementById('narasi-select');
+  if (narasiSel) narasiSel.value = savedNarasi;
 
   // Always show library first — tapi cek dulu apakah ada session aktif yang mesti di-resume
   await tryResumeLastSession();

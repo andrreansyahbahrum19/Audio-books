@@ -1936,10 +1936,14 @@ async function fetchAudio(chIdx, sIdx) {
     const data = await res.json();
     if (!data.audioUrl) throw new Error('Worker tidak return audioUrl');
 
-    // Gemini kadang return audio/L16 (raw PCM) — convert ke WAV biar browser bisa play
+    // Gemini return audio/L16 (raw PCM) — deteksi dari mimeType atau extension URL
     let finalUrl = data.audioUrl;
-    if (data.mimeType && data.mimeType.includes('L16')) {
-      finalUrl = await pcmToWavUrl(data.audioUrl, data.mimeType);
+    const isPcm = (data.mimeType && (data.mimeType.includes('L16') || data.mimeType.includes('pcm')))
+                || data.audioUrl.includes('.pcm')
+                || data.storageKey?.includes('.pcm');
+    if (isPcm) {
+      const mime = data.mimeType || 'audio/L16;rate=24000;channels=1';
+      finalUrl = await pcmToWavUrl(data.audioUrl, mime);
     }
 
     audioCache[cacheKey] = finalUrl;

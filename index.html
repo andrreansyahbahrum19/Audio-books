@@ -751,6 +751,47 @@ input[type=range]::-webkit-slider-thumb {
 .upload-prog-track { flex: 1; height: 3px; background: var(--border-strong); border-radius: 2px; overflow: hidden; }
 .upload-prog-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; width: 0%; }
 .upload-prog-label { font-size: 0.7rem; color: var(--ink-muted); white-space: nowrap; }
+
+/* ── MINI PLAYER (library screen) ── */
+.mini-player {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--surface); border-top: 1px solid var(--border-strong);
+  padding: 10px 20px calc(10px + env(safe-area-inset-bottom));
+  z-index: 40; display: none;
+  box-shadow: 0 -4px 24px rgba(60,40,10,0.09);
+  cursor: pointer;
+  transition: opacity 0.3s;
+}
+body.night .mini-player { box-shadow: 0 -4px 24px rgba(0,0,0,0.3); }
+.mini-player.show { display: flex; align-items: center; gap: 12px; }
+.mini-player-cover {
+  width: 36px; height: 36px; border-radius: 6px;
+  background: var(--surface2); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; overflow: hidden;
+}
+.mini-player-cover img { width: 100%; height: 100%; object-fit: cover; }
+.mini-player-info { flex: 1; min-width: 0; }
+.mini-player-title { font-size: 0.82rem; font-weight: 500; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'Lora', serif; }
+.mini-player-sub { font-size: 0.65rem; color: var(--ink-muted); margin-top: 1px; }
+.mini-player-controls { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.mini-btn {
+  width: 34px; height: 34px; border-radius: 50%; border: none; background: none;
+  color: var(--ink-dim); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.18s;
+}
+.mini-btn:hover { background: var(--surface2); color: var(--ink); }
+.mini-btn svg { width: 16px; height: 16px; }
+.mini-btn-play {
+  width: 34px; height: 34px; border-radius: 50%; border: none;
+  background: var(--accent); color: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: all 0.18s;
+}
+.mini-btn-play svg { width: 14px; height: 14px; fill: #fff; margin-left: 1px; }
+.mini-btn-play.paused svg.icon-mini-pause { display: none; }
+.mini-btn-play:not(.paused) svg.icon-mini-play { display: none; }
+/* lib-body padding when mini player shows */
+#library-screen.has-mini .lib-body { padding-bottom: 80px; }
 </style>
 </head>
 <body>
@@ -810,6 +851,31 @@ input[type=range]::-webkit-slider-thumb {
   <div class="upload-progress-bar" id="upload-progress-bar">
     <div class="upload-prog-track"><div class="upload-prog-fill" id="upload-prog-fill"></div></div>
     <div class="upload-prog-label" id="upload-prog-label">Mengupload...</div>
+  </div>
+</div>
+
+<!-- MINI PLAYER — muncul di library saat audio masih jalan -->
+<div class="mini-player" id="mini-player">
+  <div class="mini-player-cover" id="mini-cover">📖</div>
+  <div class="mini-player-info" onclick="returnToReader()">
+    <div class="mini-player-title" id="mini-title">—</div>
+    <div class="mini-player-sub" id="mini-sub">Sedang diputar</div>
+  </div>
+  <div class="mini-player-controls">
+    <button class="mini-btn" onclick="rewindSentence()" title="Sebelumnya">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/>
+      </svg>
+    </button>
+    <button class="mini-btn-play" id="mini-btn-play" onclick="miniTogglePlay()">
+      <svg class="icon-mini-play" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      <svg class="icon-mini-pause" viewBox="0 0 24 24" fill="#fff"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+    </button>
+    <button class="mini-btn" onclick="miniStop()" title="Stop & ganti buku">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
   </div>
 </div>
 
@@ -2398,14 +2464,11 @@ async function tryResumeLastSession() {
     const { data: books } = await supa.from('books').select('*').eq('id', session.bookId).single();
     if (!books) { showLibrary(); return; }
 
-    // Langsung buka buku tanpa ke library screen
-    showToast('▶ Melanjutkan sesi terakhir...');
     libraryBooks = [books];
     const res = await fetch(books.epub_url);
     const ab = await res.arrayBuffer();
     const file = new File([ab], books.title + '.epub', { type: 'application/epub+zip' });
     window._currentBookMeta = books;
-    window._autoPlay = true;
 
     const ok = await loadEpub(file);
     if (!ok) { showLibrary(); return; }
@@ -2424,13 +2487,19 @@ async function tryResumeLastSession() {
       }
     }, 400);
 
-    if (window._autoPlay) {
+    // Auto-play hanya kalau tadi sedang playing saat keluar
+    if (wasPlaying) {
       try {
         await playFrom(sent);
         showToast(`📖 Lanjut bab ${ch + 1}, kal. ${sent + 1}`);
       } catch(e) {
         showTapToContinue(ch, sent);
       }
+    } else {
+      // Tadi pause — buka reader tapi tidak auto-play
+      document.getElementById('library-screen').style.display = 'none';
+      document.getElementById('reader-screen').style.display = 'flex';
+      showToast(`📖 Lanjut dari bab ${ch + 1}, kal. ${sent + 1}`);
     }
   } catch(e) {
     showLibrary();
@@ -2461,7 +2530,69 @@ async function showLibrary() {
   document.getElementById('reader-screen').style.display = 'none';
   document.getElementById('library-screen').style.display = 'flex';
   document.getElementById('library-screen').style.flexDirection = 'column';
+  updateMiniPlayer();
   await loadBooks();
+}
+
+function updateMiniPlayer() {
+  const mini = document.getElementById('mini-player');
+  const libScreen = document.getElementById('library-screen');
+  // Mini player muncul kalau ada buku aktif (playing ATAU paused dalam sesi ini)
+  // Tidak muncul kalau app baru dibuka setelah > 5 menit tutup
+  if (currentChapter >= 0 && chapters.length > 0) {
+    // Ada buku yang sedang dibuka — tampilkan mini player
+    const ch = chapters[currentChapter];
+    document.getElementById('mini-title').textContent = bookTitle || '—';
+    document.getElementById('mini-sub').textContent = `Bab ${currentChapter + 1} · Kal. ${currentSentence + 1}/${ch?.sentences?.length || 0}`;
+    // Cover
+    const coverEl = document.getElementById('mini-cover');
+    const meta = window._currentBookMeta;
+    if (meta?.cover_url) {
+      coverEl.innerHTML = `<img src="${meta.cover_url}" alt="">`;
+    } else {
+      coverEl.textContent = '📖';
+    }
+    // Play/pause state
+    const playBtn = document.getElementById('mini-btn-play');
+    if (isPlaying) {
+      playBtn.classList.remove('paused');
+    } else {
+      playBtn.classList.add('paused');
+    }
+    mini.classList.add('show');
+    libScreen.classList.add('has-mini');
+  } else {
+    mini.classList.remove('show');
+    libScreen.classList.remove('has-mini');
+  }
+}
+
+function returnToReader() {
+  if (currentChapter < 0) return;
+  document.getElementById('library-screen').style.display = 'none';
+  document.getElementById('reader-screen').style.display = 'flex';
+}
+
+function miniTogglePlay() {
+  togglePlay();
+  // Update mini play/pause icon
+  setTimeout(() => {
+    const playBtn = document.getElementById('mini-btn-play');
+    if (isPlaying) { playBtn.classList.remove('paused'); }
+    else { playBtn.classList.add('paused'); }
+    const sub = document.getElementById('mini-sub');
+    if (sub) sub.textContent = isPlaying ? `Bab ${currentChapter + 1} · Kal. ${currentSentence + 1}/${chapters[currentChapter]?.sentences?.length || 0}` : 'Dijeda';
+  }, 100);
+}
+
+function miniStop() {
+  stopAudio();
+  chapters = []; currentChapter = -1; currentSentence = 0;
+  downloadedChapters.clear();
+  window._currentBookMeta = null;
+  document.body.classList.remove('text-expanded');
+  document.getElementById('mini-player').classList.remove('show');
+  document.getElementById('library-screen').classList.remove('has-mini');
 }
 
 async function loadBooks() {
@@ -2627,6 +2758,15 @@ async function openBook(bookId) {
     return;
   }
 
+  // Stop audio kalau ada buku lain yang sedang jalan
+  if (isPlaying || currentChapter >= 0) {
+    stopAudio();
+    chapters = []; currentChapter = -1; currentSentence = 0;
+    downloadedChapters.clear();
+    window._currentBookMeta = null;
+    document.getElementById('mini-player').classList.remove('show');
+    document.getElementById('library-screen').classList.remove('has-mini');
+  }
   showToast('Memuat buku...');
   try {
     const res = await fetch(book.epub_url);
@@ -2740,9 +2880,8 @@ function closeCtx() { document.getElementById('ctx-menu').classList.remove('show
 document.addEventListener('click', closeCtx);
 
 function resetBook() {
-  stopAudio(); chapters = []; currentChapter = -1; currentSentence = 0;
-  downloadedChapters.clear();
-  window._currentBookMeta = null;
+  // Kalau audio sedang jalan → ke dashboard tapi audio tetap jalan (mini player)
+  // Kalau audio stop → reset penuh
   document.getElementById('reader-screen').style.display = 'none';
   document.body.classList.remove('text-expanded');
   showLibrary();

@@ -1,5 +1,5 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/((?!sw\\.js|manifest\\.json|icon-192\\.png|icon-512\\.png|logo_Audio_books\\.webp).*)", "destination": "/index.html" }
   ]
 }

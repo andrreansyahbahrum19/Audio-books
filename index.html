@@ -480,7 +480,7 @@ body.night .bottom-player { box-shadow: 0 -4px 32px rgba(0,0,0,0.3); }
   overflow: hidden; max-height: 0; transition: max-height 0.35s ease, opacity 0.3s ease;
   opacity: 0; background: var(--surface); border-bottom: 1px solid var(--border);
 }
-.voice-bar.open { max-height: 260px; opacity: 1; padding: 14px 20px 16px; }
+.voice-bar.open { max-height: 420px; opacity: 1; padding: 14px 20px 16px; overflow-y: auto; }
 .voice-row { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 12px; }
 .voice-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-muted); }
 .chip-group { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -491,6 +491,19 @@ body.night .bottom-player { box-shadow: 0 -4px 32px rgba(0,0,0,0.3); }
 }
 .chip:hover { border-color: var(--accent); color: var(--ink); }
 .chip.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+
+/* Panel suara per-karakter (multi-voice narasi) */
+.char-voice-panel { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.char-voice-list { display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto; }
+.char-voice-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px;
+}
+.char-voice-name { font-size: 0.75rem; color: var(--ink); font-family: 'DM Sans', sans-serif; }
+.char-voice-item select {
+  background: var(--surface); border: 1px solid var(--border-strong); color: var(--ink-dim);
+  font-family: 'DM Sans', sans-serif; font-size: 0.7rem; padding: 3px 6px; border-radius: 8px; cursor: pointer;
+}
 
 /* sel-bubble, def-bubble: lihat block CSS di atas (line ~282) */
 /* Bookmark toast */
@@ -1033,6 +1046,13 @@ body.night .mini-player { box-shadow: 0 -4px 24px rgba(0,0,0,0.3); }
         <button class="chip" data-voice="en-US-Wavenet-F" data-gender="FEMALE" onclick="selectVoice(this)">Wavenet-F ♀</button>
       </div>
     </div>
+    <div class="voice-row" id="character-voices-row" style="display:none">
+      <span class="voice-label">Karakter</span>
+      <div class="char-voice-panel">
+        <button class="chip active" id="char-voices-toggle" onclick="toggleCharVoices()" title="Nyala/matiin suara beda per tokoh">🎭 Multi-voice</button>
+        <div id="character-voice-list" class="char-voice-list"></div>
+      </div>
+    </div>
     <div class="speed-row">
       <div class="speed-group">
         <span class="voice-label">Kecepatan</span>
@@ -1225,6 +1245,16 @@ let selectedGender = 'FEMALE';
 let selectedLangCode = 'id-ID';
 let speechRate = 1.0;
 let pitchVal = 0;
+
+// ── MULTI-VOICE NARASI (karakter) ──
+// Pool voice id-ID yang tersedia di UI — dipakai buat auto-assign karakter
+const VOICE_POOL_ID = ['id-ID-Wavenet-A', 'id-ID-Wavenet-B', 'id-ID-Wavenet-C', 'id-ID-Wavenet-D'];
+const GENDER_BY_VOICE = { 'id-ID-Wavenet-A': 'FEMALE', 'id-ID-Wavenet-B': 'MALE', 'id-ID-Wavenet-C': 'MALE', 'id-ID-Wavenet-D': 'FEMALE' };
+let characterVoices = {};       // { "Nama Karakter": { voice, gender, pitchOffset } } — per buku
+let charVoicesEnabled = true;   // toggle multi-voice on/off
+const speakerDetectBusy = new Set(); // chIdx yang lagi diproses (anti double-call)
+function currentBookKey() { return window._currentBookMeta?.id || 'local'; }
+
 let chapters = [];
 let currentChapter = -1;
 let currentSentence = 0;
@@ -1636,6 +1666,7 @@ fileInput.addEventListener('change', e => { if (e.target.files[0]) loadEpub(e.ta
 // ── EPUB LOADER ──
 async function loadEpub(file) {
   setStatus('Memuat EPUB...', '');
+  loadCharacterVoices(); renderCharacterPanel();
   try {
     const ab = await file.arrayBuffer();
     const zip = await JSZip.loadAsync(ab);
@@ -1738,6 +1769,118 @@ function extractChapterStructure(body, fallbackNum) {
   return { sentences, segMeta, title };
 }
 
+// ── MULTI-VOICE NARASI: character voice persistence ──
+function loadCharacterVoices() {
+  try {
+    const raw = localStorage.getItem(`cv_${currentBookKey()}`);
+    characterVoices = raw ? JSON.parse(raw) : {};
+  } catch { characterVoices = {}; }
+}
+function saveCharacterVoices() {
+  localStorage.setItem(`cv_${currentBookKey()}`, JSON.stringify(characterVoices));
+}
+
+// Assign voice ke karakter baru — round-robin dari VOICE_POOL_ID, hindarin voice narator,
+// kalau karakter lebih banyak dari pool, ulang pool dengan pitch offset biar tetep beda kuping.
+function assignVoiceForCharacter(name) {
+  if (characterVoices[name]) return characterVoices[name];
+  const used = Object.values(characterVoices).map(v => v.voice);
+  const pool = VOICE_POOL_ID.filter(v => v !== selectedVoice);
+  const candidates = pool.length ? pool : VOICE_POOL_ID;
+  // cari voice di pool yang paling jarang dipakai
+  let best = candidates[0], bestCount = Infinity;
+  for (const v of candidates) {
+    const c = used.filter(u => u === v).length;
+    if (c < bestCount) { best = v; bestCount = c; }
+  }
+  const pitchOffset = bestCount === 0 ? 0 : (bestCount % 2 === 1 ? 2.5 : -2.5) * Math.ceil(bestCount / 2);
+  const assigned = { voice: best, gender: GENDER_BY_VOICE[best] || 'FEMALE', pitchOffset };
+  characterVoices[name] = assigned;
+  saveCharacterVoices();
+  return assigned;
+}
+
+// ── MULTI-VOICE NARASI: speaker detection via Claude (reuse proxy "Ask Claude") ──
+async function detectSpeakers(chIdx) {
+  if (!charVoicesEnabled) return;
+  if (selectedLangCode !== 'id-ID') return; // voice pool karakter cuma ada buat id-ID
+  if (!claudeApiKey || !CLAUDE_PROXY_URL) return; // diem-diem aja, fallback ke narator semua
+  const ch = chapters[chIdx]; if (!ch || !ch.sentences.length) return;
+  const cacheKey = `sp_${currentBookKey()}_${chIdx}`;
+  const cached = localStorage.getItem(cacheKey);
+  if (cached) {
+    try {
+      const map = JSON.parse(cached); // { [i]: "Nama" }
+      Object.entries(map).forEach(([i, name]) => {
+        if (ch.segMeta[i]) { ch.segMeta[i].speaker = name; assignVoiceForCharacter(name); }
+      });
+      renderCharacterPanel();
+    } catch {}
+    return;
+  }
+  if (speakerDetectBusy.has(chIdx)) return;
+  speakerDetectBusy.add(chIdx);
+  try {
+    const numbered = ch.sentences.map((s, i) => `${i}: ${s}`).join('\n');
+    const prompt = `Ini teks sebuah bab novel, tiap baris diberi nomor. Tandai baris mana yang merupakan KALIMAT DIALOG LANGSUNG (ucapan tokoh, biasanya dalam tanda kutip) dan siapa nama tokoh yang mengucapkannya. Baris narasi biasa TIDAK perlu dimasukkan.\n\nBalas HANYA dengan JSON array, tanpa teks lain, format: [{"i":NOMOR,"speaker":"Nama Tokoh"}]. Kalau nama tokoh tidak jelas dari konteks, pakai deskripsi singkat (mis. "Lelaki tua"). Maksimal 400 baris pertama akan dianalisis.\n\nTeks:\n${numbered.slice(0, 12000)}`;
+    const resp = await fetch(CLAUDE_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': claudeApiKey },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
+    });
+    if (!resp.ok) throw new Error('API ' + resp.status);
+    const data = await resp.json();
+    let txt = (data.content || []).map(b => b.text || '').join('');
+    txt = txt.trim().replace(/^```json\s*|^```\s*|```$/g, '');
+    const tags = JSON.parse(txt);
+    const map = {};
+    tags.forEach(t => {
+      if (t && ch.segMeta[t.i] && t.speaker) {
+        ch.segMeta[t.i].speaker = t.speaker;
+        map[t.i] = t.speaker;
+        assignVoiceForCharacter(t.speaker);
+      }
+    });
+    localStorage.setItem(cacheKey, JSON.stringify(map));
+    renderCharacterPanel();
+  } catch (e) {
+    console.warn('detectSpeakers gagal, fallback semua narator:', e.message);
+  } finally {
+    speakerDetectBusy.delete(chIdx);
+  }
+}
+
+// Render panel "Karakter" di voice-bar — daftar tokoh kedetek + selector voice per tokoh
+function renderCharacterPanel() {
+  const row = document.getElementById('character-voices-row');
+  const list = document.getElementById('character-voice-list');
+  if (!row || !list) return;
+  const names = Object.keys(characterVoices);
+  if (!names.length) { row.style.display = 'none'; return; }
+  row.style.display = '';
+  const escAttr = s => escHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  list.innerHTML = names.map(name => {
+    const cv = characterVoices[name];
+    const opts = VOICE_POOL_ID.map(v => `<option value="${v}" ${v === cv.voice ? 'selected' : ''}>${v.replace('id-ID-','')} ${GENDER_BY_VOICE[v]==='FEMALE'?'♀':'♂'}</option>`).join('');
+    return `<div class="char-voice-item"><span class="char-voice-name">${escHtml(name)}</span><select data-char="${escAttr(name)}" onchange="reassignCharacterVoice(this.dataset.char, this.value)">${opts}</select></div>`;
+  }).join('');
+}
+function reassignCharacterVoice(name, voice) {
+  characterVoices[name] = { voice, gender: GENDER_BY_VOICE[voice] || 'FEMALE', pitchOffset: characterVoices[name]?.pitchOffset || 0 };
+  saveCharacterVoices();
+  Object.keys(audioCache).forEach(k => { if (k.includes(`|${name}|`)) { URL.revokeObjectURL(audioCache[k]); delete audioCache[k]; } });
+  if (isPlaying) { stopAudio(); startPlaying(); }
+}
+function toggleCharVoices() {
+  charVoicesEnabled = !charVoicesEnabled;
+  localStorage.setItem('ab_charvoices', charVoicesEnabled ? '1' : '0');
+  const btn = document.getElementById('char-voices-toggle');
+  if (btn) btn.classList.toggle('active', charVoicesEnabled);
+  showToast(charVoicesEnabled ? 'Multi-voice karakter: ON' : 'Multi-voice karakter: OFF');
+  Object.keys(audioCache).forEach(k => { URL.revokeObjectURL(audioCache[k]); delete audioCache[k]; });
+  if (isPlaying) { stopAudio(); startPlaying(); }
+}
+
 // ── CHAPTER SHEET LIST ──
 function renderSheetList() {
   const list = document.getElementById('sheet-list');
@@ -1776,6 +1919,7 @@ function loadChapter(idx) {
   saveProgress();
   document.getElementById('ch-label-btn').textContent = `Bab ${idx+1}`;
   renderTextPanel(); updateProgress();
+  detectSpeakers(idx); // async, gak nge-block — hasil nyusul & auto-apply pas ready
 }
 
 // ── DOWNLOAD ──
@@ -1789,10 +1933,15 @@ async function downloadChapter(chIdx, e) {
   document.getElementById('dl-progress-fill').style.width = '0%';
   document.getElementById('dl-info').textContent = 'Memulai...';
 
+  // Resolve input SSML + voice per segmen sebelum download (biar narasi hasil download
+  // juga kebagian suara karakter + prosody koma/tanya/seru, bukan cuma pas playback live)
+  const segInputs = ch.sentences.map((s, i) => buildInputSSML(s, ch.segMeta?.[i] || { type: 'para', paraStart: true, paraEnd: true }));
+  const segVoices = ch.sentences.map((s, i) => resolveSegmentVoice(ch.segMeta?.[i]));
+
   if (navigator.serviceWorker && navigator.serviceWorker.controller) {
     navigator.serviceWorker.controller.postMessage({
       type: 'START_DOWNLOAD',
-      payload: { chapterIdx: chIdx, sentences: ch.sentences, segMeta: ch.segMeta, apiKey, voice: selectedVoice, gender: selectedGender, speed: speechRate, pitch: pitchVal, bookTitle, chapterTitle: ch.title }
+      payload: { chapterIdx: chIdx, segInputs, segVoices, apiKey, speed: speechRate, pitch: pitchVal, bookTitle, chapterTitle: ch.title }
     });
     showToast('Download dimulai — bisa pindah tab!');
   } else {
@@ -1801,7 +1950,7 @@ async function downloadChapter(chIdx, e) {
     for (let i = 0; i < total; i++) {
       document.getElementById('dl-progress-fill').style.width = Math.round((i/total)*100) + '%';
       document.getElementById('dl-info').textContent = `Segmen ${i+1} / ${total}`;
-      try { mp3Chunks.push(await fetchAudioRaw(buildInputSSML(ch.sentences[i], ch.segMeta?.[i]))); }
+      try { mp3Chunks.push(await fetchAudioRaw(segInputs[i], segVoices[i].voice, segVoices[i].gender, segVoices[i].pitchOffset)); }
       catch(err) { document.getElementById('dl-modal').classList.remove('show'); btn.className = 'ch-dl-btn'; btn.textContent = '⬇ MP3'; showToast('Gagal: ' + err.message); return; }
     }
     document.getElementById('dl-modal').classList.remove('show');
@@ -1833,30 +1982,45 @@ function cancelDownload() {
 // Builder SSML: intonasi sesuai posisi kalimat dalam struktur paragraf/heading
 function buildInputSSML(text, meta) {
   const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // Jeda pendek di koma/titik-koma — napas natural di tengah kalimat panjang
+  const withCommaBreaks = s => esc(s).replace(/([,;])(\s)/g, '$1<break time="150ms"/>$2');
+  const isQuestion = /\?\s*$/.test(text.trim());
+  const isExclaim = /!\s*$/.test(text.trim());
+  const hasComma = /[,;]/.test(text);
+
   if (meta.type === 'heading') {
     // Judul bab: emphasis + jeda panjang setelah dibaca (terasa seperti judul diumumkan)
     return { ssml: `<speak><emphasis level="moderate">${esc(text)}</emphasis><break time="900ms"/></speak>` };
   }
-  if (meta.paraEnd) {
-    // Kalimat terakhir paragraf: jeda napas singkat — ada ruang antara paragraf
-    return { ssml: `<speak>${esc(text)}<break time="450ms"/></speak>` };
-  }
-  // Kalimat tengah paragraf: plain text (gak ada overhead SSML, hemat quota)
-  return { text };
+
+  // Bungkus prosody kalau kalimat tanya/seru — intonasi lebih hidup
+  let bodyOpen = '', bodyClose = '';
+  if (isQuestion) { bodyOpen = '<prosody pitch="+3st">'; bodyClose = '</prosody>'; }
+  else if (isExclaim) { bodyOpen = '<prosody rate="106%" volume="+2dB">'; bodyClose = '</prosody>'; }
+
+  const needsSSML = isQuestion || isExclaim || hasComma || meta.paraEnd;
+  if (!needsSSML) return { text }; // kalimat plain di tengah paragraf: hemat quota, gak perlu SSML
+
+  const inner = hasComma ? withCommaBreaks(text) : esc(text);
+  const tail = meta.paraEnd ? '<break time="450ms"/>' : ''; // jeda napas antar-paragraf
+  return { ssml: `<speak>${bodyOpen}${inner}${bodyClose}${tail}</speak>` };
 }
-async function fetchAudioRaw(textOrInput) {
+async function fetchAudioRaw(textOrInput, voiceOverride, genderOverride, pitchOffset) {
   // backward-compat: string → {text}, object → as-is ({text} atau {ssml})
   const ttsInput = typeof textOrInput === 'string' ? { text: textOrInput } : textOrInput;
+  const voice = voiceOverride || selectedVoice;
+  const gender = genderOverride || selectedGender;
+  const effectivePitch = Math.max(-20, Math.min(20, pitchVal + (pitchOffset || 0)));
   const res = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ input: ttsInput, voice: { languageCode: selectedLangCode, name: selectedVoice, ssmlGender: selectedGender }, audioConfig: { audioEncoding: 'MP3', speakingRate: speechRate, pitch: pitchVal, effectsProfileId: ['headphone-class-device'] } })
+    body: JSON.stringify({ input: ttsInput, voice: { languageCode: selectedLangCode, name: voice, ssmlGender: gender }, audioConfig: { audioEncoding: 'MP3', speakingRate: speechRate, pitch: effectivePitch, effectsProfileId: ['headphone-class-device'] } })
   });
   if (!res.ok) {
     const err = await res.json().catch(()=>({error:{message:'TTS error'}}));
     const msg = err.error?.message || 'TTS error';
-    // Fallback: kalau voice gak ada, balik ke default voice otomatis
+    // Fallback: kalau voice gak ada, balik ke default voice otomatis (cuma buat voice narator utama)
     const defaultFallback = selectedLangCode === 'en-US' ? 'en-US-Wavenet-C' : 'id-ID-Wavenet-A';
-    if (/does not exist|misspelled|not found/i.test(msg) && selectedVoice !== defaultFallback) {
+    if (/does not exist|misspelled|not found/i.test(msg) && voice === selectedVoice && selectedVoice !== defaultFallback) {
       const badVoice = selectedVoice;
       selectedVoice = defaultFallback; selectedGender = 'FEMALE';
       document.querySelectorAll('.chip[data-voice]').forEach(c => c.classList.toggle('active', c.dataset.voice === defaultFallback));
@@ -1866,7 +2030,7 @@ async function fetchAudioRaw(textOrInput) {
       // retry sekali dengan voice valid
       const res2 = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input: ttsInput, voice: { languageCode: selectedLangCode, name: selectedVoice, ssmlGender: selectedGender }, audioConfig: { audioEncoding: 'MP3', speakingRate: speechRate, pitch: pitchVal, effectsProfileId: ['headphone-class-device'] } })
+        body: JSON.stringify({ input: ttsInput, voice: { languageCode: selectedLangCode, name: selectedVoice, ssmlGender: selectedGender }, audioConfig: { audioEncoding: 'MP3', speakingRate: speechRate, pitch: effectivePitch, effectsProfileId: ['headphone-class-device'] } })
       });
       if (!res2.ok) { const e2 = await res2.json().catch(()=>({error:{message:'TTS error'}})); throw new Error(e2.error?.message || 'TTS error'); }
       const d2 = await res2.json();
@@ -1881,20 +2045,30 @@ async function fetchAudioRaw(textOrInput) {
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes.buffer;
 }
+
+// Resolve voice/gender/pitchOffset efektif buat satu segmen (narator vs karakter)
+function resolveSegmentVoice(meta) {
+  if (charVoicesEnabled && selectedLangCode === 'id-ID' && meta?.speaker && characterVoices[meta.speaker]) {
+    const cv = characterVoices[meta.speaker];
+    return { voice: cv.voice, gender: cv.gender, pitchOffset: cv.pitchOffset || 0, speaker: meta.speaker };
+  }
+  return { voice: selectedVoice, gender: selectedGender, pitchOffset: 0, speaker: null };
+}
 async function fetchAudio(chIdx, sIdx) {
-  const cacheKey = `${chIdx}-${sIdx}-${selectedVoice}-${speechRate}-${pitchVal}`;
-  if (audioCache[cacheKey]) return audioCache[cacheKey];
   const ch = chapters[chIdx];
   const text = ch?.sentences[sIdx]; if (!text) return null;
   const meta = ch.segMeta?.[sIdx];
-  // Playback pakai SSML kalau ada metadata (intonasi paragraf + heading)
+  const { voice, gender, pitchOffset, speaker } = resolveSegmentVoice(meta);
+  const cacheKey = `${chIdx}-${sIdx}|${speaker || ''}|${voice}-${speechRate}-${pitchVal + pitchOffset}`;
+  if (audioCache[cacheKey]) return audioCache[cacheKey];
+  // Playback pakai SSML kalau ada metadata (intonasi paragraf + heading + koma/tanya/seru)
   const ttsInput = meta ? buildInputSSML(text, meta) : { text };
   let raw;
   try {
-    raw = await fetchAudioRaw(ttsInput);
+    raw = await fetchAudioRaw(ttsInput, voice, gender, pitchOffset);
   } catch(e) {
     // Fallback: kalau SSML gagal (mis. voice gak support), coba plain text
-    if (ttsInput.ssml) { raw = await fetchAudioRaw({ text }); }
+    if (ttsInput.ssml) { raw = await fetchAudioRaw({ text }, voice, gender, pitchOffset); }
     else throw e;
   }
   const blob = new Blob([raw], { type: 'audio/mpeg' });
@@ -2216,6 +2390,9 @@ function saveSettings() {
   localStorage.setItem('ab_pitch', pitchVal);
 }
 function loadSettings() {
+  const cvOn = localStorage.getItem('ab_charvoices');
+  if (cvOn !== null) charVoicesEnabled = cvOn === '1';
+  document.getElementById('char-voices-toggle')?.classList.toggle('active', charVoicesEnabled);
   const v = localStorage.getItem('ab_voice');
   const g = localStorage.getItem('ab_gender');
   const l = localStorage.getItem('ab_lang');
@@ -2842,6 +3019,7 @@ async function openBook(bookId) {
 
 async function loadEpubFromLibrary(file, bookMeta) {
   window._currentBookMeta = bookMeta;
+  loadCharacterVoices(); renderCharacterPanel();
 
   // Prioritas resume: bm_auto (tiap kalimat) → Supabase → bm_ manual → dari awal
   let resumeCh = 0, resumeSent = 0;

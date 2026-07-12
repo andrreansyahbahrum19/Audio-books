@@ -1,7 +1,7 @@
 // Audio Books — Service Worker
 // Handles background download queue via IndexedDB
 
-const CACHE_NAME = 'audiobooks-v3';
+const CACHE_NAME = 'audiobooks-v4';
 const STATIC_ASSETS = [
   '/Audio-books/',
   '/Audio-books/index.html',
@@ -94,13 +94,13 @@ async function notifyClients(msg) {
 }
 
 async function processDownloadQueue(source, payload) {
-  const { chapterIdx, sentences, apiKey, voice, gender, speed, pitch, bookTitle, chapterTitle } = payload;
+  const { chapterIdx, segInputs, segVoices, apiKey, speed, pitch, bookTitle, chapterTitle } = payload;
   const db = await openDB();
   const cancelKey = 'dl_cancel_' + chapterIdx;
   await dbPut(db, 'flags', cancelKey, false);
 
   const chunks = [];
-  const total = sentences.length;
+  const total = segInputs.length;
 
   // Check if we have partial progress
   let startFrom = 0;
@@ -121,15 +121,16 @@ async function processDownloadQueue(source, payload) {
     }
 
     try {
+      const segVoice = segVoices[i] || {};
       const res = await fetch(
         `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            input: { text: sentences[i] },
-            voice: { languageCode: 'id-ID', name: voice, ssmlGender: gender },
-            audioConfig: { audioEncoding: 'MP3', speakingRate: speed, pitch, effectsProfileId: ['headphone-class-device'] }
+            input: segInputs[i],
+            voice: { languageCode: 'id-ID', name: segVoice.voice, ssmlGender: segVoice.gender },
+            audioConfig: { audioEncoding: 'MP3', speakingRate: speed, pitch: Math.max(-20, Math.min(20, pitch + (segVoice.pitchOffset || 0))), effectsProfileId: ['headphone-class-device'] }
           })
         }
       );

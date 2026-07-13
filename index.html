@@ -491,6 +491,11 @@ body.night .bottom-player { box-shadow: 0 -4px 32px rgba(0,0,0,0.3); }
 }
 .chip:hover { border-color: var(--accent); color: var(--ink); }
 .chip.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+.offline-badge {
+  font-size: 0.65rem; font-weight: 600; padding: 3px 9px; border-radius: 12px;
+  background: rgba(214,110,60,0.12); color: #d66e3c; border: 1px solid rgba(214,110,60,0.3);
+  margin-left: 8px; white-space: nowrap;
+}
 
 /* Panel suara per-karakter (multi-voice narasi) */
 .char-voice-panel { display: flex; flex-direction: column; gap: 8px; width: 100%; }
@@ -992,6 +997,7 @@ body.night .mini-player { box-shadow: 0 -4px 24px rgba(0,0,0,0.3); }
         <div class="book-title-top" id="book-title-top">—</div>
         <div class="chapter-tag" id="chapter-tag-top">—</div>
       </div>
+      <span id="offline-badge" class="offline-badge" style="display:none">📴 Offline</span>
     </div>
     <div class="top-bar-right">
       <button class="btn-icon btn-icon-aa" id="text-btn" onclick="toggleTextBar()" title="Pengaturan teks" style="font-family:'Lora',serif;font-weight:600;font-size:0.95rem;">Aa</button>
@@ -1254,6 +1260,78 @@ let characterVoices = {};       // { "Nama Karakter": { voice, gender, pitchOffs
 let charVoicesEnabled = true;   // toggle multi-voice on/off
 const speakerDetectBusy = new Set(); // chIdx yang lagi diproses (anti double-call)
 function currentBookKey() { return window._currentBookMeta?.id || 'local'; }
+
+// ── FULL OFFLINE MODE: IndexedDB (epub buku + audio per-bab) ──
+function openOfflineDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('audiobooks_offline', 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('books')) db.createObjectStore('books');         // key: bookId → { meta, epub: ArrayBuffer, savedAt }
+      if (!db.objectStoreNames.contains('chapterAudio')) db.createObjectStore('chapterAudio'); // key: `${bookId}_${chIdx}` → { segments: ArrayBuffer[], savedAt }
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function odbGet(store, key) {
+  const db = await openOfflineDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).get(key);
+    req.onsuccess = () => res(req.result || null);
+    req.onerror = () => rej(req.error);
+  });
+}
+async function odbPut(store, key, val) {
+  const db = await openOfflineDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).put(val, key);
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+async function odbDelete(store, key) {
+  const db = await openOfflineDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).delete(key);
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+async function odbGetAllEntries(store) {
+  const db = await openOfflineDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readonly');
+    const os = tx.objectStore(store);
+    const keysReq = os.getAllKeys();
+    const valsReq = os.getAll();
+    tx.oncomplete = () => res(keysReq.result.map((k, i) => ({ key: k, value: valsReq.result[i] })));
+    tx.onerror = () => rej(tx.error);
+  });
+}
+// Cache key konsisten buat audioCache in-memory — dipakai fetchAudio() & prefetchNext()
+function audioCacheKey(chIdx, sIdx) {
+  const ch = chapters[chIdx]; const meta = ch?.segMeta?.[sIdx];
+  const { voice, pitchOffset, speaker } = resolveSegmentVoice(meta);
+  return `${chIdx}-${sIdx}|${speaker || ''}|${voice}-${speechRate}-${pitchVal + pitchOffset}`;
+}
+// Sync downloadedChapters Set dari IndexedDB — dipanggil tiap buku dibuka biar badge ✓ akurat walau abis reload
+async function refreshDownloadedChaptersState() {
+  downloadedChapters.clear();
+  try {
+    const entries = await odbGetAllEntries('chapterAudio');
+    const prefix = `${currentBookKey()}_`;
+    entries.forEach(({ key }) => {
+      if (typeof key === 'string' && key.startsWith(prefix)) {
+        const idx = parseInt(key.slice(prefix.length), 10);
+        if (!isNaN(idx)) downloadedChapters.add(idx);
+      }
+    });
+  } catch(e) {}
+}
 
 let chapters = [];
 let currentChapter = -1;
@@ -1641,13 +1719,27 @@ async function finalizeSWDownload(chapterIdx, base64Chunks, chapterTitle, bTitle
   a.href = url; a.download = safeName + '.mp3';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+  // Simpen per-segmen ke IndexedDB — ini yang bikin bab ini bisa didengerin FULL OFFLINE
+  // (bukan cuma jadi file MP3 lepas di folder Downloads)
+  try {
+    await odbPut('chapterAudio', `${currentBookKey()}_${chapterIdx}`, {
+      segments: byteArrays.map(b => b.buffer), savedAt: Date.now()
+    });
+  } catch(e) { console.warn('Gagal simpan audio offline:', e); }
+
   downloadedChapters.add(chapterIdx);
   const btn = document.getElementById('btn-dl-' + chapterIdx);
   if (btn) { btn.className = 'ch-dl-btn done'; btn.textContent = '✓'; }
-  showToast(`Bab ${chapterIdx + 1} selesai didownload!`);
+  showToast(`Bab ${chapterIdx + 1} selesai — bisa didengerin offline!`);
 }
 function setApiStatus(msg, cls) {
   const el = document.getElementById('api-status'); el.textContent = msg; el.className = 'field-status ' + cls;
+}
+function updateOfflineBadge() {
+  const badge = document.getElementById('offline-badge');
+  if (badge) badge.style.display = navigator.onLine ? 'none' : 'inline-block';
+  if (!navigator.onLine) showToast('📴 Offline — bab yang udah didownload tetep bisa dibaca & didengerin');
 }
 window.addEventListener('DOMContentLoaded', initApp);
 
@@ -1667,6 +1759,7 @@ fileInput.addEventListener('change', e => { if (e.target.files[0]) loadEpub(e.ta
 async function loadEpub(file) {
   setStatus('Memuat EPUB...', '');
   loadCharacterVoices(); renderCharacterPanel();
+  refreshDownloadedChaptersState();
   try {
     const ab = await file.arrayBuffer();
     const zip = await JSZip.loadAsync(ab);
@@ -1925,6 +2018,17 @@ function loadChapter(idx) {
 // ── DOWNLOAD ──
 async function downloadChapter(chIdx, e) {
   e.stopPropagation();
+  // Klik lagi pas udah done → tawarin hapus offline data (bukan re-download)
+  if (downloadedChapters.has(chIdx)) {
+    if (confirm(`Hapus audio offline Bab ${chIdx+1}? File MP3 yang udah kedownload ke Downloads gak kehapus, cuma cache offline di app-nya aja.`)) {
+      await odbDelete('chapterAudio', `${currentBookKey()}_${chIdx}`).catch(()=>{});
+      downloadedChapters.delete(chIdx);
+      const btn = document.getElementById(`btn-dl-${chIdx}`);
+      if (btn) { btn.className = 'ch-dl-btn'; btn.textContent = '⬇ MP3'; }
+      showToast(`Cache offline Bab ${chIdx+1} dihapus`);
+    }
+    return;
+  }
   if (!apiKey) { showToast('Sambungkan API key dulu'); return; }
   const ch = chapters[chIdx]; if (!ch) return;
   const btn = document.getElementById(`btn-dl-${chIdx}`);
@@ -1964,9 +2068,17 @@ async function downloadChapter(chIdx, e) {
     a.href = url; a.download = `${safeName}.mp3`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+    // Simpen per-segmen ke IndexedDB juga — biar offline playback jalan di browser tanpa SW
+    try {
+      await odbPut('chapterAudio', `${currentBookKey()}_${chIdx}`, {
+        segments: mp3Chunks, savedAt: Date.now()
+      });
+    } catch(err) { console.warn('Gagal simpan audio offline:', err); }
+
     downloadedChapters.add(chIdx);
     btn.className = 'ch-dl-btn done'; btn.textContent = '✓';
-    showToast(`Bab ${chIdx+1} berhasil didownload!`);
+    showToast(`Bab ${chIdx+1} selesai — bisa didengerin offline!`);
   }
 }
 function cancelDownload() {
@@ -2061,6 +2173,22 @@ async function fetchAudio(chIdx, sIdx) {
   const { voice, gender, pitchOffset, speaker } = resolveSegmentVoice(meta);
   const cacheKey = `${chIdx}-${sIdx}|${speaker || ''}|${voice}-${speechRate}-${pitchVal + pitchOffset}`;
   if (audioCache[cacheKey]) return audioCache[cacheKey];
+
+  // Offline-first: kalau bab ini udah didownload, pakai audio lokal — gak perlu internet sama sekali
+  try {
+    const offline = await odbGet('chapterAudio', `${currentBookKey()}_${chIdx}`);
+    if (offline?.segments?.[sIdx]) {
+      const blob = new Blob([offline.segments[sIdx]], { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(blob);
+      audioCache[cacheKey] = url;
+      return url;
+    }
+  } catch(e) { /* IndexedDB gak ada / gagal — lanjut coba network */ }
+
+  if (!navigator.onLine) {
+    throw new Error('Lagi offline & bab ini belum di-download. Download dulu pas ada sinyal ya.');
+  }
+
   // Playback pakai SSML kalau ada metadata (intonasi paragraf + heading + koma/tanya/seru)
   const ttsInput = meta ? buildInputSSML(text, meta) : { text };
   let raw;
@@ -2233,7 +2361,7 @@ async function playSentence(idx, session) {
 
 function prefetchNext(chIdx, sIdx) {
   const ch = chapters[chIdx]; if (!ch || sIdx >= ch.sentences.length) return;
-  const key = `${chIdx}-${sIdx}-${selectedVoice}-${speechRate}-${pitchVal}`;
+  const key = audioCacheKey(chIdx, sIdx);
   if (!audioCache[key]) fetchAudio(chIdx, sIdx).catch(()=>{});
 }
 
@@ -2637,6 +2765,10 @@ async function initApp() {
   loadReaderStyle();
   // Key sudah hardcoded — langsung connected, skip form input
   showApiConnected();
+  // Offline indicator
+  updateOfflineBadge();
+  window.addEventListener('online', updateOfflineBadge);
+  window.addEventListener('offline', updateOfflineBadge);
   // Init native text selection bubble (Tandai + Cari Arti)
   document.addEventListener('mouseup', checkSel);
   document.addEventListener('touchend', checkSel);
@@ -2692,13 +2824,25 @@ async function tryResumeLastSession() {
     // Juga skip kalau session-nya udah lebih dari 24 jam
     if (Date.now() - session.ts > 86400000) { showLibrary(); return; }
 
-    // Load library dulu buat dapet metadata buku
-    const { data: books } = await supa.from('books').select('*').eq('id', session.bookId).single();
-    if (!books) { showLibrary(); return; }
-
-    libraryBooks = [books];
-    const res = await fetch(books.epub_url);
-    const ab = await res.arrayBuffer();
+    // Load library dulu buat dapet metadata buku — fallback ke cache lokal kalau offline
+    let books;
+    try {
+      const { data } = await supa.from('books').select('*').eq('id', session.bookId).single();
+      books = data;
+    } catch(e) { books = null; }
+    let ab;
+    if (books) {
+      libraryBooks = [books];
+      try { ab = await fetchEpubOffline(session.bookId, books.epub_url, books); }
+      catch(e) { showLibrary(); return; }
+    } else {
+      // Supabase gak bisa diakses (offline) — coba pure dari cache lokal
+      const cached = await odbGet('books', session.bookId).catch(() => null);
+      if (!cached) { showLibrary(); return; }
+      books = cached.meta; ab = cached.epub;
+      libraryBooks = [books];
+      showToast('📴 Offline — buku dimuat dari cache lokal');
+    }
     const file = new File([ab], books.title + '.epub', { type: 'application/epub+zip' });
     window._currentBookMeta = books;
 
@@ -2851,6 +2995,16 @@ async function loadBooks() {
     libraryBooks = data || [];
     renderBookGrid(libraryBooks);
   } catch(e) {
+    // Offline fallback — pakai buku yang pernah dibuka & ke-cache lokal
+    try {
+      const cachedEntries = await odbGetAllEntries('books');
+      if (cachedEntries.length) {
+        libraryBooks = cachedEntries.map(entry => entry.value.meta).filter(Boolean);
+        renderBookGrid(libraryBooks);
+        showToast('📴 Offline — nampilin buku yang pernah dibuka');
+        return;
+      }
+    } catch(e2) {}
     grid.innerHTML = '';
     empty.style.display = 'flex';
     showToast('Gagal load perpustakaan: ' + e.message);
@@ -2979,6 +3133,22 @@ async function uploadEpubToSupabase(file) {
   }
 }
 
+// Fetch epub dari network + cache ke IndexedDB; kalau network gagal (offline), fallback ke cache lokal.
+// Throw kalau dua-duanya gak ada (belum pernah dibuka online sama sekali).
+async function fetchEpubOffline(bookId, epubUrl, bookMeta) {
+  try {
+    const res = await fetch(epubUrl);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const ab = await res.arrayBuffer();
+    odbPut('books', bookId, { meta: bookMeta, epub: ab, savedAt: Date.now() }).catch(()=>{});
+    return ab;
+  } catch (netErr) {
+    const cached = await odbGet('books', bookId).catch(() => null);
+    if (cached?.epub) { showToast('📴 Offline — buku dimuat dari cache lokal'); return cached.epub; }
+    throw new Error('Gak ada internet & buku ini belum pernah di-cache offline');
+  }
+}
+
 async function openBook(bookId) {
   const book = libraryBooks.find(b => b.id === bookId);
   if (!book) return;
@@ -3005,8 +3175,7 @@ async function openBook(bookId) {
   }
   showToast('Memuat buku...');
   try {
-    const res = await fetch(book.epub_url);
-    const ab = await res.arrayBuffer();
+    const ab = await fetchEpubOffline(bookId, book.epub_url, book);
     const file = new File([ab], book.title + '.epub', { type: 'application/epub+zip' });
     document.getElementById('library-screen').style.display = 'none';
     document.getElementById('library-screen').classList.remove('has-mini');
@@ -3020,6 +3189,7 @@ async function openBook(bookId) {
 async function loadEpubFromLibrary(file, bookMeta) {
   window._currentBookMeta = bookMeta;
   loadCharacterVoices(); renderCharacterPanel();
+  refreshDownloadedChaptersState();
 
   // Prioritas resume: bm_auto (tiap kalimat) → Supabase → bm_ manual → dari awal
   let resumeCh = 0, resumeSent = 0;

@@ -1,11 +1,14 @@
 // Audio Books — Service Worker
 // Handles background download queue via IndexedDB
 
-const CACHE_NAME = 'audiobooks-v4';
+const CACHE_NAME = 'audiobooks-v5';
 const STATIC_ASSETS = [
   '/Audio-books/',
   '/Audio-books/index.html',
   '/Audio-books/manifest.json',
+  '/Audio-books/icon-192.png',
+  '/Audio-books/icon-512.png',
+  '/Audio-books/logo_Audio_books.webp',
 ];
 
 // ── INSTALL: cache static assets ──

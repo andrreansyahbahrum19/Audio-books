@@ -1,14 +1,16 @@
 // Audio Books — Service Worker
 // Handles background download queue via IndexedDB
 
-const CACHE_NAME = 'audiobooks-v5';
+const CACHE_NAME = 'audiobooks-v9';
 const STATIC_ASSETS = [
-  '/Audio-books/',
-  '/Audio-books/index.html',
-  '/Audio-books/manifest.json',
-  '/Audio-books/icon-192.png',
-  '/Audio-books/icon-512.png',
-  '/Audio-books/logo_Audio_books.webp',
+  './',
+  './index.html',
+  './styles.css',
+  './app.js',
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png',
+  './logo_Audio_books.webp',
 ];
 
 // ── INSTALL: cache static assets ──
@@ -33,9 +35,40 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   // Don't intercept Google TTS API calls
   if (event.request.url.includes('texttospeech.googleapis.com')) return;
-  event.respondWith(
-    caches.match(event.request).then(cached => cached || fetch(event.request))
-  );
+
+  // Navigations use network-first so deployed UI updates are not trapped
+  // behind an old cached index.html. The cached shell remains the offline fallback.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+          return response;
+        })
+        .catch(() => caches.match(event.request).then(cached => cached || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  const requestUrl = new URL(event.request.url);
+  const isLocalAsset = requestUrl.origin === self.location.origin &&
+    ['style', 'script', 'image', 'font'].includes(event.request.destination);
+
+  if (isLocalAsset) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request)));
 });
 
 // ── BACKGROUND DOWNLOAD QUEUE ──

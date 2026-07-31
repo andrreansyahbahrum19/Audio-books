@@ -106,6 +106,12 @@
         <polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/>
       </svg>
     </button>
+    <button class="mini-btn btn-pip" id="mini-pip-btn" title="Buka mini window (Picture-in-Picture)" aria-label="Buka mini window Picture-in-Picture" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="4" width="20" height="16" rx="2.5"/>
+        <rect x="12" y="12" width="8" height="6" rx="1.5" fill="currentColor" stroke="none"/>
+      </svg>
+    </button>
     <button class="mini-btn" onclick="miniStop()" title="Stop & ganti buku">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -226,6 +232,12 @@
           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
           <line x1="23" y1="9" x2="17" y2="15"/>
           <line x1="17" y1="9" x2="23" y2="15"/>
+        </svg>
+      </button>
+      <button class="btn-icon btn-pip" id="pip-btn" title="Buka mini window (Picture-in-Picture)" aria-label="Buka mini window Picture-in-Picture" aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="4" width="20" height="16" rx="2.5"/>
+          <rect x="12" y="12" width="8" height="6" rx="1.5" fill="currentColor" stroke="none"/>
         </svg>
       </button>
       <button class="btn-icon" id="night-btn" onclick="toggleNight()" title="Night mode">
@@ -433,5 +445,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="app.js"></script>
+<script src="pip.js"></script>
 </body>
 </html>

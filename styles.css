@@ -933,3 +933,27 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   outline: 3px solid var(--focus);
   outline-offset: 3px;
 }
+
+/* ── PICTURE-IN-PICTURE BUTTON ──────────────────────────────
+   Tombol buka/tutup mini floating window (pip.js).
+   Disembunyikan otomatis oleh pip.js kalau browser gak support. */
+.btn-pip.pip-active {
+  color: var(--accent);
+  background: var(--accent-mid);
+}
+.btn-pip.pip-active:hover {
+  background: var(--accent-mid);
+  color: var(--accent);
+}
+.btn-pip.pip-active svg rect:last-child {
+  animation: pip-blip 2s ease-in-out infinite;
+}
+@keyframes pip-blip {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-pip.pip-active svg rect:last-child { animation: none; }
+}
+/* Di mini player, tombol PiP ikut ukuran .mini-btn */
+.mini-btn.btn-pip svg { width: 16px; height: 16px; }

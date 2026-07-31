@@ -172,6 +172,7 @@ function toggleMute() {
   document.getElementById('icon-mute').style.display = isMuted ? ''      : 'none';
   btn.classList.toggle('muted', isMuted);
   if (currentAudio) currentAudio.muted = isMuted;
+  pipSync();
 }
 let isPlaying = false;
 let currentAudio = null;
@@ -187,6 +188,26 @@ let isNight = false;
 let readerFontPx = 18;
 let readerLineHeight = 1.95;
 let readerJustify = false;
+
+/* ── BRIDGE UNTUK PICTURE-IN-PICTURE (pip.js) ─────────────────
+   Variabel di atas dideklarasikan pakai `let` → gak nempel ke window.
+   Bridge ini bikin pip.js bisa baca state playback tanpa eval.        */
+window.abGetState = function () {
+  return {
+    bookTitle,
+    chapters,
+    currentChapter,
+    currentSentence,
+    isPlaying,
+    isMuted,
+    isNight
+  };
+};
+
+// Dipanggil dari titik-titik perubahan state. No-op kalau PiP gak aktif.
+function pipSync() {
+  try { if (window.PiPPlayer) window.PiPPlayer.sync(); } catch (e) {}
+}
 const FS_MIN = 14, FS_MAX = 30;
 
 // ── NIGHT MODE ──
@@ -198,6 +219,7 @@ function toggleNight() {
     button.setAttribute('aria-label', isNight ? 'Aktifkan mode terang' : 'Aktifkan mode malam');
     button.setAttribute('aria-pressed', isNight ? 'true' : 'false');
   });
+  pipSync();
 }
 
 // ── EXPAND TEXT ──
@@ -1321,6 +1343,7 @@ function updateActiveSentence(idx) {
   scrollToSentence(idx);
   // Pastiin bookmark highlight gak hilang saat update active
   restoreBookmarkHighlight();
+  pipSync();
 }
 
 // Scroll container ke kalimat aktif — manual, reliable di Android WebView kecil
@@ -1344,6 +1367,7 @@ function updateProgress() {
   const pct = Math.round((currentSentence / total) * 100);
   setProgress('progress-fill', pct);
   document.getElementById('progress-label').textContent = `${currentSentence+1}/${total}`;
+  pipSync();
 }
 
 function setPlayState(state) {
@@ -1354,6 +1378,7 @@ function setPlayState(state) {
   if (state==='play') { ip.style.display='none'; ipu.style.display='block'; }
   else if (state==='loading') { ip.style.display='none'; ipu.style.display='none'; btn.classList.add('loading-state'); }
   else { ip.style.display='block'; ipu.style.display='none'; }
+  pipSync();
 }
 
 function setStatus(msg, cls='') {
@@ -1840,6 +1865,7 @@ function miniTogglePlay() {
 
 function miniStop() {
   stopAudio();
+  try { if (window.PiPPlayer && window.PiPPlayer.active) window.PiPPlayer.close(); } catch(e) {}
   chapters = []; currentChapter = -1; currentSentence = 0;
   downloadedChapters.clear();
   window._currentBookMeta = null;
